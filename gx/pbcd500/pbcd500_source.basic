@@ -1,0 +1,1373 @@
+Do 'Inicio' //Parametria
+
+//INDICES
+//BnjEmp, BnjCod, BnjOK, BnjSuc, BnjCta (Sucursal/Cuenta)
+//BnjEmp, BnjCod, BnjOK, BnjCta         (Cuenta)
+
+&PorCuenta = 'N'  //(Sucursal/Cuenta)
+If &Sucd = 0 And &Such = 99999
+    &PorCuenta = 'S'
+EndIf
+
+If &PDebug = 'S'
+    &aDbgMsg = Concat('+ Por cuenta: ', &PorCuenta,' ')     Do 'Genero Debug'
+EndIf
+
+&VecDSuc() = 0
+&VecHSuc() = 0
+&VecDCta() = 0
+&VecHCta() = 0
+
+&Tabla = 'BNJ002'
+Call(PBNJBLOQ, &BNJEmp, &BNJCod, &Proc, &Sucd, &Such, &CliDde, &CliHta, &BloqCommit, &PorCuenta, &CantPasos, &VecDSuc(), &VecHSuc(), &VecDCta(), &VecHCta(), &TotalRegistros, &Tabla)
+
+If &PDebug = 'S'
+    &aDbgMsg = Concat('+ Cantidad de pasos: ', Trim(Str(&CantPasos,10,0)),' ')        Do 'Genero Debug'
+    &aDbgMsg = Concat('+ Total registros: ', Trim(Str(&TotalRegistros,18,0)),' ')     Do 'Genero Debug'
+EndIf
+
+If &TotalRegistros <> 0
+    If &PorCuenta = 'N'  
+        &Y = 1
+        Do While &Y <= &CantPasos
+            &SucdAux = &VecDSuc(&y)
+            &SuchAux = &VecHSuc(&y)
+            
+            If &SuchAux <> &SucdAux
+                &SuchAux   = &VecDSuc(&y)
+                &CliDdeAux = &VecDCta(&Y)
+                &CliHtaAux = &CliHta
+                
+                Do 'ProcesoXSucCta' // //proceso primer sucursal su rango
+                
+                If &PDebug = 'S'
+                    Do 'GraboLog'
+                EndIf
+                
+                &SucdAux   = &VecDSuc(&y) + 1
+                &SuchAux   = &VecHSuc(&y) - 1
+                &CliDdeAux = &CliDde
+                &CliHtaAux = &CliHta
+                
+                If &SucdAux <= &SuchAux
+                    Do 'ProcesoXSucCta' // //posibles sucursales intermedias entre desde hasta todo el rango        
+                    If &PDebug = 'S'
+                        Do 'GraboLog'
+                    EndIf     
+                EndIf
+    
+                &SucdAux   = &VecHSuc(&y)
+                &SuchAux   = &VecHSuc(&y)
+                &CliDdeAux = &CliDde
+                &CliHtaAux = &VecHCta(&Y)
+                
+                Do 'ProcesoXSucCta'  //Ultima sucursal y cliente desde incial hasta el ultimo registro que corrresponda
+                
+                If &pgplat <> 'AS'   
+                    Commit
+                EndIf
+                
+                If &PDebug = 'S'
+                    Do 'GraboLog'
+                EndIf 
+            Else    
+                &SucdAux   = &VecHSuc(&y)
+                &SuchAux   = &VecHSuc(&y)
+                &CliDdeAux = &VecDCta(&Y)
+                &CliHtaAux = &VecHCta(&Y)
+            
+                Do 'ProcesoXSucCta' 
+                
+                If &pgplat <> 'AS'   
+                    Commit
+                EndIf
+                
+                If &PDebug = 'S'
+                    Do 'GraboLog'
+                EndIf
+            EndIf
+            
+            If &TotalRegistros = &Contador
+                &Y = &CantPasos                
+            EndIf
+           
+            &y += 1    
+        EndDo
+    Else
+        &y = 1
+        Do While &y <= &CantPasos
+            &CliDdeAux = &VecDCta(&Y)
+            &CliHtaAux = &VeChcta(&y)
+            Do 'ProcesoXCta'    
+            If &pgplat <> 'AS'   
+                Commit
+            EndIf
+            If &PDebug = 'S'
+                Do 'GraboLog1'
+            EndIf
+            If &CliHtaAux > &CliHta
+                &CliHtaAux = &CliHta                
+            EndIf
+            If &TotalRegistros = &Contador
+                &Y = &CantPasos                
+            EndIf
+            &y += 1     
+        EndDo
+    EndIf //&PorCuenta = 'N'
+EndIf //&TotalRegistros <> 0   
+            
+If &PDebug = 'S'
+    &aDbgMsg = Concat('+ ParametrosF: ',Trim(&C1),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Time(),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&Contador,15,0)),' + Registros Procesados: ')         Do 'Genero Debug'
+EndIf
+
+//Quito marca de ejecución
+ &EstCTRL  = 'F'
+ &MIGESTRi = &TotalRegistros
+ &MIGESTRg = &Contador
+ &MIGESTOk = &CantReg
+ &MIGESTEr = &CantErr
+Call(PBNJCTRL,&BNJEmp,&BNJCod,&P1,&C1,&C2,&tipo,'C',&EstCTRL,&MIGESTRi,&MIGESTRg,&MIGESTOk,&MIGESTEr)
+
+ //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// -------------------------------- S U B R U T I N A S ------------------------------------------------------------ S U B R U T I N A S --------------------------------------------//
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Log Error'  
+    &HuboError = 'S'
+    &CantErr  += 1
+    New
+        //BnjEmp    = &BNJEmp 
+        Bnj901Pg  = 'PBCD500'
+        BnjTipU   = 1    
+        LBnMod    = &LBnMod 
+        LBnSuc    = &LBnSuc 
+        LBnMda    = &LBnMda 
+        LBnPap    = &LBnPap 
+        LBnCta    = &LBnCta 
+        LBnOpe    = &LBnOpe 
+        LBnSOp    = &LBnSOp 
+        LBnTOp    = &LBnTOp 
+        LBnChq    = &LBnChq 
+        BnjErrCod = &BnjErrCod 
+        LBnFch    = &Today 
+        LBnHor    = &Time 
+        BnjCod    = &BNJCod 
+        LBnFPag   = &Fecha 
+    EndNew
+    
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Cargar_Vectores'
+    &J = 1
+    &vSucursal() = 0
+    For Each Order Pgcod Sucurs //---Fst001: Sucursales
+    Where Pgcod = &BNJEmp 
+    Defined By Scnom  
+        If &J < 1000
+            &vSucursal(&J) = Sucurs 
+        Else
+            Exit
+        EndIf    
+        &J = &J + 1
+    EndFor
+    &TopeSuc = &J
+    
+    &J = 1
+    &vpapel() = 0
+    For Each Order Papel   //---Fst205: Papeles
+    Defined By Papnom
+        If &J < 1000
+            &vpapel(&J)= Papel
+        Else
+            Exit
+        EndIf    
+        &J = &J + 1
+    EndFor    
+    &TopePap = &J
+        
+    &J = 1
+    For Each Order Cecod   // Fst026: Estados Operaciones
+    Defined By Cenom 
+        If &J < 100
+            &vEstado(&J)= Cecod
+        Else
+            Exit
+        EndIf
+        &J = &J + 1
+    EndFor
+    &TopeEst = &J
+
+    &J = 1
+    &vMoneda() = 7852    
+    For Each Order Moneda // FST005: Monedas
+    Defined By Monom 
+        If &J < 1000
+            &vMoneda(&J)= Moneda 
+        Else
+            Exit
+        EndIf
+        &J = &J + 1
+    EndFor    
+    &TopeMda = &J
+    
+    &K = 1
+    For Each Order Tzttas // FST024: Tipos de Tasas
+    Defined By Tznom 
+        If &K < 10
+            &vTzttas(&K) = Tzttas 
+            &vefli(&K)   = TzEfLi
+        Else
+            Exit
+        EndIf
+        &K = &K + 1
+    EndFor
+    &TopeTTa = &K
+
+    For Each Order Pgcod Trmod Trnro Trord Trsbor // FST036: Subrodinales
+    Where Pgcod = &BNJEmp
+    Where Trmod = &BNJMod
+    Where Trnro = &BNJTrnDsd
+    Defined By  Trrubr
+        &trord = Trord
+        Exit
+    EndFor
+
+    &J = 0
+    &vsubordinal() = 0
+    For Each Order Pgcod Trmod Trnro Trord Trsbor // FST036: Subordinales
+    Where Pgcod = &BNJEmp 
+    Where Trmod = &BNJMod 
+    Where Trnro = &BNJTrnDsd 
+    Where Trord = &trord        
+    Defined By  Trrubr
+        &J = Trsbor
+        &vModulo(&J) = Pcnivc 
+        &vsubordinal(&J) = Trsbor
+    EndFor    
+    
+    &P         = 1
+    &VeCpMod() = 0
+    &VecPTop() = 0
+    &Dscod     = 3
+    For Each Dscod, Modulo
+    Where Dscod = &Dscod
+    Defined By Modulo
+        For Each Order Modulo Totope //Fst004
+        Defined By Totpiz 
+            &VeCpMod(&P) = Modulo
+            &VecPTop(&P) = Totope
+            &P = &P + 1
+        EndFor
+    EndFor
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Control_Sucursal'
+    &J = 1
+    Do While &J < &TopeSuc
+//    Do While &J < 1000 And &vSucursal(&J) <> 0
+        If &vSucursal(&J) = &LBnSuc 
+            &Ok = 'S'
+            Exit
+        Else
+            &J = &J + 1
+        EndIf    
+    EndDo
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Control_Papel'
+    &J = 1
+    Do While &J < &TopePap
+//    Do While &J < 1000 And &vpapel(&J) <> 0
+        If &vpapel(&J) = &LBnPap 
+            &Ok = 'S'
+            Exit
+        Else
+            &J = &J + 1
+        EndIf    
+    EndDo
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Control_Estado'
+    &J = 1
+    Do While &J < &TopeEst
+//    Do While &J < 100
+        If &vEstado(&J) = &BnjStat 
+            &Ok = 'S'
+            Exit
+        Else
+            &J = &J + 1
+        EndIf    
+    EndDo
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Control_Moneda'
+    &J = 1
+    Do While &J < &TopeMda
+//    Do While &J < 1000 And &vMoneda(&J) <> 7852
+        If &vMoneda(&J) = &LBnMda And &vMoneda(&J) <> 7852
+            &Ok = 'S'
+            Exit
+        Else
+            &J = &J + 1
+        EndIf    
+    EndDo
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Control_TTasa'
+    &tasefec = 'N'
+    &K       = 1
+    Do While &K < &TopeTTa
+//    Do While &K < 10
+        If &vTzttas(&K) = &Bnjttas 
+            If &vefli(&K) = '1'
+                &tasefec = 'S'
+            EndIf
+            &Ok = 'S'
+            Exit
+        Else
+            &K = &K + 1
+        EndIf    
+    EndDo
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Control_TipoOp'
+    &Ok = 'N'
+    &K = 1
+    Do While &K < &P
+        If &VeCpMod(&K) = &Modulo And &VecPTop(&K) = &LBnTOp
+            &Ok = 'S'
+            &K = &P 
+        EndIf
+        &K = &K + 1
+    EndDo
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'PertIntAdel'
+    &Pert = 'N'
+    &J = 1
+    Do While &J <= &TopeIA .And. &Pert = 'N'
+        If &Modulo = &ModIntAdel(&J)
+            &Pert = 'S'
+        Else
+            &J = &J + 1    
+        EndIf
+    EndDo
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Control_Subordinal'
+    If &vSubordinal(&sbor) = &sbor
+        &Ok = 'S'
+    EndIf    
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Inicio'
+    &Contab    = 'S'
+    &BnjTipU   = 1
+    &tipo      = 2 // Sucursal y Cuentas
+    &tipx      = 1 // Control
+    &Bnj900Pg  = 'PBCD500'
+    &HuboError = 'N'
+    
+    Call(PBNJINI,&BnjEmp,&BnjCod,&BnjTipU,&P1,&Sucd,&Such,&C1,&DatoDesde,&C2,&DatoHasta,&tipx,&tipo,&BloqCommit,&pgplat,&Bnj900Pg,&Contab,&BNJMod,&BnjTrnDsd,&TrOrd,&HuboError,&PorSQL,&PDebug)
+    
+    For Each Order Pgcod // FST017: Empresas
+    Where Pgcod = &BNJEmp 
+    Defined By Pgnom 
+        &Pgfape = Pgfape
+        &Pgmocc = Pgmocc         
+        &pgclte = Pgclte
+        &Pgsuc  = Pgsuc
+    EndFor
+        
+    &concancelado = 'S'
+    &CliDde = &DatoDesde
+    &CliHta = &DatoHasta
+    
+    // Toma tolerancias 
+    &tolerancia = 4
+    &guia       = 60001
+    For Each Order Pgcod Tpcod Tpcorr // fst098
+    Where Pgcod = &BNJEmp
+    Where Tpcod = &guia
+    Defined By Tpnro
+        If Tpcorr = 1
+            &tolerancia = Tpimp
+            Exit
+        EndIf
+    EndFor
+    
+    // Veo Obligaciones a Migrar
+    &conhistoria = 'S'
+    &opgcod      = 60005
+    For Each Order Pgcod OpgCod// fst200
+    Where Pgcod = &BNJEmp
+    Where OpgCod = &opgcod
+    Defined By OpgVal
+        If OpgVal = 'N'
+            &conhistoria = 'N'
+        EndIf
+    EndFor   
+    
+    // Datos por defecto (si no los cargan en la Bandeja)
+    &tp1cod1   = 129
+    &tp1corr1  = 2
+    &tp1corr2  = 1
+    &tp1corr3  = 1
+    &tpoanoopc = 0       &tpovtoopc = ''     &tpodiaopc = 0       &tpotasopc = 0
+    For Each Order Tp1cod Tp1cod1 Tp1corr1 Tp1corr2 Tp1corr3 // fst198
+    Where Tp1cod   = &BNJEmp
+    Where Tp1cod1  = &tp1cod1
+    Where Tp1corr1 = &tp1corr1
+    Where Tp1corr2 = &tp1corr2
+    Where Tp1corr3 = &tp1corr3
+    Defined By Tp1nro1 
+        &tpoanoopc = Tp1nro1 
+        If Tp1nro2 = 1
+            &tpovtoopc = 'A'
+        EndIf
+        If Tp1nro2 = 2
+            &tpovtoopc = 'N'
+        EndIf
+        If Tp1nro2 = 3
+            &tpovtoopc = 'P'
+        EndIf
+        &tpodiaopc = Tp1nro3
+        &tpotasopc = Tp1imp1
+    EndFor  
+    
+    &Proc = 'P'
+    
+    &vmodulo()     = NullValue(&Modulo)
+    &vsubordinal() = NullValue(&sbor)
+    
+    // --- Cargar Tablas en Vectores
+    Do 'Cargar_Vectores'
+    
+    &ModComun()   = NullValue(&ModComun())
+    &ModIntAdel() = NullValue(&ModIntAdel())
+    &TopeMC = NullValue(&TopeMC)
+    &TopeIA = NullValue(&TopeIA)
+    &Sistema = 3
+    &POpmCod = 6
+    For Each  Order Dscod Modulo // Fst111: Sistemas, Modulo
+    Where Dscod = &Sistema
+    Defined By Dscod    
+        //Verifico si el módulo es de interés adelantado o no
+        &EsIntA = 'N'
+        For Each Order Pgcod Modulo OpmCod //FST201
+        Where Pgcod  = &BNJEmp
+        Where OpmCod = &POpmCod
+        Defined By OpmTxt
+            &EsIntA = 'S'
+        EndFor
+        If &EsIntA = 'S'
+            &TopeIA = &TopeIA + 1
+            &ModIntAdel(&TopeIA) = Modulo
+        Else
+            &TopeMC = &TopeMC + 1
+            &ModComun(&TopeMC) = Modulo
+        EndIf
+    EndFor
+    
+    &TopeMCCCA = NullValue(&TopeMCCCA)
+    &ModCCCA() = NullValue(&ModCCCA())
+    For Each Order Dscod Modulo // Fst111: Sistemas, Modulo
+    Where Dscod >= 1 
+    Where Dscod <= 2
+    Defined By Dscod
+        &TopeMCCCA = &TopeMCCCA + 1
+        &ModCCCA(&TopeMCCCA) = Modulo
+    EndFor    
+    
+    //Obtengo valores para la clase de tasa de corte.
+    &PTpcod     = 601
+    &PTpcorr    = 5
+    &ClaseTasaC = NullValue(&ClaseTasaC)
+    &exiclase   = 'N'
+    For Each Order Pgcod Tpcod Tpcorr //FST098
+    Where Pgcod  = &BNJEmp
+    Where Tpcod  = &PTpcod
+    Where Tpcorr = &PTpcorr
+    Defined By Tpnro
+        &exiclase = 'S'
+        &ClaseTasaC = Tpnro
+    EndFor
+    
+    &LBnSuc = &Such
+    &LBnCta = &CliHta
+//    If &exiclase = 'N' //--- Indica Pedro Crampet que la guía 601/5 no se va a utilizar y se procede a comentar la logica del error.
+//        &BnjErrCod = 1479  //Clase de tasa (tasa de corte) DPF no definida
+//        Do 'Log Error'
+//    EndIf
+    
+    //Obtengo valores para códigos de relación de Endosos y de fraccionamiento
+    &endoso  = 169
+    &fracc   = 69
+    &PTpcod  = 359
+    &PTpcorr = 3
+    For Each  Order Pgcod Tpcod Tpcorr  //FST098
+    Where Pgcod  = &BNJEmp
+    Where Tpcod  = &PTpcod
+    Where Tpcorr = &PTpcorr
+    Defined By Tpnro
+        &endoso = Tpnro   
+    EndFor
+    &PTpcorr = 4
+    For Each  Order Pgcod Tpcod Tpcorr  //FST098
+    Where Pgcod  = &BNJEmp
+    Where Tpcod  = &PTpcod
+    Where Tpcorr = &PTpcorr
+    Defined By Tpnro
+        &fracc = Tpnro   
+    EndFor
+    
+    &FecNum   = 99999999 - (Year(&Pgfape)*10000 + Month(&Pgfape)*100 + Day(&Pgfape))    
+    &Contador = 0
+    
+    &aDbgEmp = &BNJEmp
+    &aDbgPrg = &Pgmname
+    &aDbgUsu = UserId('Server')
+    &aDbgTpo = 'D'   // D.Debug / E.Error / W.Warning
+    
+    If &PDebug = 'S'
+        &aDbgMsg = Concat('+ ParametrosI: ',&C1,' ')
+        &aDbgMsg = Concat(&aDbgMsg,&C2,' ')
+        &aDbgMsg = Concat(&aDbgMsg,Time(),' ')              Do 'Genero Debug'
+    EndIf
+     &PgmCall = 'PBPD400B' //Programa Actualiza el estado de la BNJ002 //FM 17/12/2014
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Genero Debug'       // -- Genero debug (en tabla FSADbg) 
+// -----------------------
+    // Recibe: &aDbgMsg   
+    Call(PFSADbg, &aDbgEmp, &aDbgPrg, &aDbgUsu, &aDbgMsg, &aDbgTpo)
+    Do 'Mensaje'
+EndSub  // 'Genero Debug'
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'ProcesoXCta'
+    // --- Leer y validar la Bandeja
+    For Each BnjEmp BnjCod BnjOK BnjCta   // BNJ002
+    Where BnjEmp = &BNJEmp 
+    Where BnjCod = &BNJCod 
+    Where BnjOK  = &Proc 
+    Where BnjCta >= &CliDdeAux
+    Where BnjCta <= &CliHtaAux
+    Defined By BnjNume
+        
+        &LBnMod = NullValue(&LBnMod )
+        &LBnSuc = BnjSuc 
+        &LBnMda = BnjMda 
+        &LBnPap = BnjPap 
+        &LBnCta = BnjCta         
+        &LBnOpe = BnjOpe 
+        &LBnSOp = BnjSbOp 
+        &LBnTOp = BnjTOpe 
+        &LBnChq = NullValue(&LBnChq )
+        
+        &BnjStat   = BnjStat
+        &BnjFval   = BnjFval
+        &BnjSdo    = BnjSdo
+        &BnjImp    = BnjImp
+        &BnjNume   = BnjNume
+        &BnjFvto   = BnjFvto
+        &BnjFe99   = BnjFe99
+        &BnjPlus   = BnjPlus
+        &BnjPzo    = BnjPzo
+        &BnjTasa   = BnjTasa
+        &BnjPeriod = BnjPeriod
+        &BnjEven   = BnjEven
+        &BnjFnum   = BnjFnum
+        &BnjCltcod = BnjCltcod
+        &BnjDrev   = BnjDrev
+        &BnjTdia   = BnjTdia
+        &BnjTvto   = BnjTvto
+        &Bnjttas   = BnjTtas
+        &Bnjtano   = BnjTano
+        &BnjTint   = BnjTint
+        
+        &BnjIm2    = BnjIm2   //Intereses
+        &BnjIm3    = BnjIm3   //Resultado
+
+        &Control57 = 'S'
+        If BnjCoN1 = 9
+            &Control57 = 'N'
+        EndIf
+
+        Do 'Proceso'
+        Do 'EndodoFraccionamiento'
+        
+//        BnjTtac = &TipoTC
+//        BnjTasc = &TasaTC
+//        //Por si varian de acuerdo a dato de guía
+//        BnjTtas = &Bnjttas
+//        BnjTano = &BnjTano
+//        BnjTvto = &BnjTvto
+//        BnjTdia = &BnjTdia
+//        
+//        // --- Grabar Modulo
+//        BnjCbcu = &Modulo
+                        
+        If &HuboError = 'N'
+            &BnjOK = 'R'
+            &CantReg = &CantReg + 1
+        Else
+            &BnjOK = 'X'
+        EndIf
+        &Filler(1) = Str(BnjTtac)
+        &Filler(2) = Str(BnjTasc,11,6)
+        &Filler(3) = Str(BnjTtas)
+        &Filler(4) = Str(BnjTano)
+        &Filler(5) = BnjTvto
+        &Filler(6) = Str(BnjTdia)
+        &Filler(7) = Str(BnjCbcu)
+        Call(PBNJACT1, &BNJEmp, &BnjCod, &Proc, &LBnSuc, &LBnMda, &LBnPap, &LBnCta, &LBnOpe, &LBnSOp, &LBnTOp, &BnjOK, &Filler())
+//        Call(PBPD400B,&BnjEmp,&BnjCod,&LBnSuc,&LBnMda,&LBnPap,&LBnCta, &LBnOpe, &LBnSOp,&LBnTOp,&BnjOK)   
+    EndFor
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'ProcesoXSucCta'
+    // --- Leer y validar la Bandeja
+    For Each BnjEmp BnjCod BnjOK BnjSuc BnjCta   // BNJ002
+    Where BnjEmp = &BNJEmp 
+    Where BnjCod = &BNJCod 
+    Where BnjOK  = &Proc
+    Where BnjSuc >= &SucdAux
+    Where BnjSuc <= &SuchAux
+    Where BnjCta >= &CliDdeAux
+    Where BnjCta <= &CliHtaAux      
+    Defined By BnjNume
+        
+        &LBnMod = NullValue(&LBnMod )
+        &LBnSuc = BnjSuc 
+        &LBnMda = BnjMda 
+        &LBnPap = BnjPap 
+        &LBnCta = BnjCta         
+        &LBnOpe = BnjOpe 
+        &LBnSOp = BnjSbOp 
+        &LBnTOp = BnjTOpe 
+        &LBnChq = NullValue(&LBnChq )
+        
+        &BnjStat   = BnjStat
+        &BnjFval   = BnjFval
+        &BnjSdo    = BnjSdo
+        &BnjImp    = BnjImp
+        &BnjNume   = BnjNume
+        &BnjFvto   = BnjFvto
+        &BnjFe99   = BnjFe99
+        &BnjPlus   = BnjPlus
+        &BnjPzo    = BnjPzo
+        &BnjTasa   = BnjTasa
+        &BnjPeriod = BnjPeriod
+        &BnjEven   = BnjEven
+        &BnjFnum   = BnjFnum
+        &BnjCltcod = BnjCltcod
+        &BnjDrev   = BnjDrev
+        &BnjTdia   = BnjTdia
+        &BnjTvto   = BnjTvto
+        &Bnjttas   = BnjTtas
+        &Bnjtano   = BnjTano
+        &BnjTint   = BnjTint
+        
+        &BnjIm2    = BnjIm2   //Intereses
+        &BnjIm3    = BnjIm3   //Resultado
+        
+        &Control57 = 'S'
+        If BnjCoN1 = 9
+            &Control57 = 'N'
+        EndIf
+
+        Do 'Proceso'
+        Do 'EndodoFraccionamiento'
+        
+//        BnjTtac = &TipoTC
+//        BnjTasc = &TasaTC
+//        //Por si varian de acuerdo a dato de guía
+//        BnjTtas = &Bnjttas
+//        BnjTano = &BnjTano
+//        BnjTvto = &BnjTvto
+//        BnjTdia = &BnjTdia
+//        
+//        // --- Grabar Modulo
+//        BnjCbcu = &Modulo
+                        
+        If &HuboError = 'N'
+            &BnjOK = 'R'
+            &CantReg = &CantReg + 1
+        Else
+            &BnjOK = 'X'
+        EndIf
+        &Filler(1) = Str(BnjTtac)
+        &Filler(2) = Str(BnjTasc,11,6)
+        &Filler(3) = Str(BnjTtas)
+        &Filler(4) = Str(BnjTano)
+        &Filler(5) = BnjTvto
+        &Filler(6) = Str(BnjTdia)
+        &Filler(7) = Str(BnjCbcu)
+        Call(PBNJACT1, &BNJEmp, &BnjCod, &Proc, &LBnSuc, &LBnMda, &LBnPap, &LBnCta, &LBnOpe, &LBnSOp, &LBnTOp, &BnjOK, &Filler())
+//        Call(&PgmCall,&BnjEmp,&BnjCod,&LBnSuc,&LBnMda,&LBnPap,&LBnCta, &LBnOpe, &LBnSOp,&LBnTOp,&BnjOK) //FM 16/12/2014 (ERROR fetch out of sequence  AL HACER VUELCO, LLAMO A UN PROGRMA EXTERNO QUE MODIFICA EL ESTADO)
+    EndFor
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'Proceso'
+    &HuboError = 'N'
+
+    // Chequeo Subordinal
+    &sbor = &LBnTOp
+    &Ok   = 'N'
+    Do 'Control_Subordinal'
+    If &Ok = 'N'
+        &BnjErrCod = 482
+        Do 'Log Error'
+    Else
+        &Modulo = &vmodulo(&sbor)        
+    EndIf
+    
+    // Chequeo Sucursal
+    &Ok = 'N'
+    Do 'Control_Sucursal'
+    If &Ok = 'N'
+        &BnjErrCod = 1006 //193
+        Do 'Log Error'
+    EndIf
+
+    // Chequeo Moneda        
+    &Ok = 'N'
+    Do 'Control_Moneda'
+    If &Ok = 'N'
+        &BnjErrCod = 852 //194
+        Do 'Log Error'
+    EndIf
+        
+    // Chequeo Papel
+    If .Not. Null(&LBnPap)
+        Do 'Control_Papel'
+        If &Ok = 'N'
+            &BnjErrCod = 853 //469
+            Do 'Log Error'
+        EndIf
+    EndIf
+        
+    // Chequeo Cuenta
+    &Ok = 'N'
+    For Each Order Pgcod CTNRO  ///Fsd008
+    Where Pgcod = &BNJEmp 
+    Where CTNRO = &LBnCta
+    Defined By Ctnom
+        &Ok = 'S'
+    EndFor
+    If &Ok = 'N'
+        &BnjErrCod = 854 //196
+        Do 'Log Error'
+    EndIf
+    
+    // La operación NO debe ser nula
+    If Null(&LBnOpe)
+        &BnjErrCod = 1280
+        Do 'Log Error'    
+    EndIf
+
+    &EnGarantia = 'N'
+    // Control Estado de la operacion    14.01.2002
+    If .Not. Null(&BnjStat )
+        &Ok = 'N'
+        Do 'Control_Estado'
+        If &Ok = 'N'
+            &BnjErrCod = 856 //198
+            Do 'Log Error'
+        EndIf    
+        If &BnjStat = 80
+            &EnGarantia = 'S'
+        EndIf         
+    EndIf       
+    
+    // Control Tipo de Operacion
+    If &LBnTOp = NullValue(&LBnTOp)
+        &BnjErrCod = 1282
+        Do 'Log Error'
+    Else
+        Do 'PertIntAdel'
+        If &Pert = 'N'
+            Do 'Control_TipoOp'        
+            If &Ok = 'N'
+                &BnjErrCod = 950
+                Do 'Log Error'
+            EndIf    
+        Else
+            Do 'Control_TipoOp'        
+            If &Ok = 'N'
+                &BnjErrCod = 950
+                Do 'Log Error'
+            EndIf    
+        EndIf                     
+    EndIf         
+
+    // Control Fecha Valor (Fecha Apertura)
+    &nula = 'S'
+    If &BnjFval > CtoD('01/01/70')
+        &nula = 'N'
+    EndIf
+    If &nula = 'N'
+        If &BnjFval > &Pgfape
+            &BnjErrCod = 860
+            Do 'Log Error'
+        EndIf
+    Else
+        &BnjErrCod = 860
+        Do 'Log Error'
+    EndIf
+        
+    // Importe debe ser positivo o 0 si no es con huistoria
+    If (&BnjSdo <= 0 And &conhistoria = 'N') Or (&BnjSdo < 0 And &conhistoria = 'S')
+        &BnjErrCod = 203
+        Do 'Log Error'
+    EndIf
+    
+    If &BnjImp <= 0
+        &BnjErrCod = 484
+        Do 'Log Error'
+    EndIf       
+    
+    If &BnjIm2 < &BnjIm3  //Intereses menor a resultado
+        &BnjErrCod = 1484
+        Do 'Log Error'        
+    EndIf
+    
+    // El cálculo de los intereses debe ser distinto de cero.
+    If &BnjNume <= 0
+        &BnjErrCod = 1467 //29 
+        Do 'Log Error'
+    EndIf      
+   
+    &nula2 = 'S'
+    If &BnjFvto > CtoD('01/01/70')
+        &nula2 = 'N'
+    EndIf
+
+    If &nula2 = 'S'
+        &BnjErrCod = 1286
+        Do 'Log Error'    
+    EndIf
+    
+    If &BnjFvto < &BnjFval
+        &BnjErrCod = 470
+        Do 'Log Error'    
+    EndIf
+
+    &nula4 = 'S'
+    If &BnjFe99 > CtoD('01/01/70')
+        &nula4 = 'N'
+    EndIf
+
+    If &nula4 = 'N' And &BnjFe99 > &BnjFvto 
+        &BnjErrCod = 486
+        Do 'Log Error'    
+    EndIf
+    
+    If &BnjPlus <> 0 And &LBnTOp < 50
+        &BnjErrCod = 475
+        Do 'Log Error'     
+    EndIf
+        
+    If &BnjPzo = NullValue(&BnjPzo)
+        &BnjErrCod = 1287
+        Do 'Log Error'     
+    Else
+        //Veo entre mínimos y máximos, FST198 57
+        If &Control57 = 'S'
+            &PTp1cod1 = 57
+            &exi57 = 'N'
+            For Each Order Tp1cod Tp1cod1 Tp1corr1 Tp1corr2 Tp1corr3 //FST198
+            Where Tp1cod   = &BNJEmp
+            Where Tp1cod1  = &PTp1cod1
+            Where Tp1corr1 = &Modulo
+            Where Tp1corr2 = &LBnTOp
+            Where Tp1corr3 = &LBnMda            
+            Defined By Tp1desc 
+                &exi57 = 'S'
+                If &BnjPzo < Tp1nro1 .Or. &BnjPzo > Tp1nro2
+                    &BnjErrCod = 206
+                    Do 'Log Error'        
+                EndIf
+            EndFor    
+            If &exi57 = 'N'
+                &BnjErrCod = 468
+                Do 'Log Error'
+            EndIf
+        EndIf
+    EndIf       
+    
+    If Null(&BnjTasa )
+        &BnjErrCod = 208
+        Do 'Log Error'
+    EndIf
+    
+    &Periodico   = 'N'
+    &NoPeriodico = 'N'
+    If &BnjPeriod <> NullValue(&BnjPeriod)
+        &Periodico  = 'S'
+        &TipoPeriod = NullValue(&TipoPeriod)
+        If &BnjEven < 0 .Or. &BnjEven > 2 //--&BnjEven < 1 .Or. &BnjEven > 2 //--FCASTILLO
+            &BnjErrCod = 216
+            Do 'Log Error'
+        Else
+            &TipoPeriod = &BnjEven        
+        EndIf
+    Else
+        If &BnjEven = NullValue(&BnjEven)
+            &NoPeriodico = 'S'
+        EndIf
+    EndIf
+
+    If &NoPeriodico = 'N' //--FCastillo
+//        If (&BnjPeriod <> 0 and &BnjPeriod <> 30 and &BnjPeriod <> 90) or &BnjPeriod = NullValue(&BnjPeriod) //---Control de Perioricidad que sea 0, 30 o 90. A.E
+//            &BnjErrCod = 1821
+//            Do 'Log Error'
+//        EndIf
+    EndIf
+        
+    //Obtengo Tipo de Tasa y Tasa de Corte, para guardar en la bandeja,
+    //según clase de tasa, obtenida de guía 601.
+    &TipoTC = NullValue(&TipoTC)
+    &TasaTC = NullValue(&TasaTC)    
+    For Each Order Pgcod Cltcod Tgmda Tgpap Tgfdes Tgpzo   //FSD024
+    Where Pgcod   = &BNJEmp
+    Where Cltcod  = &ClaseTasaC
+    Where Tgmda   = &LBnMda
+    Where Tgpap   = &LBnPap
+    Where Tgfinv >= &FecNum
+    Defined By Tgfinv
+        &TipoTC = Tgttas
+        &TasaTC = Tgtasa
+    EndFor
+    
+//    BnjTtac = &TipoTC
+//    BnjTasc = &TasaTC
+    
+    //Averiguo si se trata de Tasa Fija o Tasa Variable.
+    &TasaF = 'N'
+    &TasaV = 'N'
+    If &LBnTOp <> NullValue(&LBnTOp)
+        If &LBnTOp > 0 .And. &LBnTOp < 50
+            &TasaF = 'S'    
+        Else
+            If &LBnTOp > 50
+                &TasaV = 'S'    
+            EndIf
+        EndIf 
+    EndIf    
+    
+    &nula3 = 'S'
+    If &BnjFnum > CtoD('01/01/70')
+        &nula3 = 'N'
+    EndIf
+
+    If &TasaF = 'S'     //Se trata de un DPF Tasa Fija  
+        If &BnjCltcod <> NullValue(&BnjCltcod)
+            &BnjErrCod = 209
+            Do 'Log Error'    
+        EndIf
+        If &BnjDrev <> NullValue(&BnjDrev)
+            &BnjErrCod = 210
+            Do 'Log Error'
+        EndIf
+        If &nula3 = 'N'
+            &BnjErrCod = 211
+            Do 'Log Error'    
+        EndIf
+    EndIf
+    
+    If &TasaV = 'S'
+        If &BnjCltcod = NullValue(&BnjCltcod)
+            &BnjErrCod = 212
+            Do 'Log Error'
+        Else
+            //Clases de tasas válidas para Tasa Variable.
+            If &BnjCltcod < 3 .Or. &BnjCltcod > 4
+                &BnjErrCod = 213
+                Do 'Log Error'   
+            EndIf 
+        EndIf
+        If &BnjDrev = NullValue(&BnjDrev)
+            &BnjErrCod = 214
+            Do 'Log Error'
+        EndIf
+        If &nula3 = 'N'
+            If &BnjFnum > &Pgfape
+                &BnjErrCod = 215
+                Do 'Log Error'
+            EndIf    
+        EndIf        
+    EndIf
+    
+    // Chequeo de Tipo de Día
+    If &BnjTdia <> 1 And &BnjTdia <> 2
+        If &tpodiaopc <> 1 And &tpodiaopc <> 2
+            &BnjErrCod = 471
+            Do 'Log Error'    
+        Else
+            &BnjTdia = &tpodiaopc
+            &BnjErrCod = 479
+            Do 'Log Error'    
+        EndIf
+    EndIf
+
+    // Chequeo de Tipo de Vencimiento
+    If &BnjTvto <> 'A' And &BnjTvto <> 'P' And &BnjTvto <> 'N'
+        If &tpovtoopc <> 'A' And &tpovtoopc <> 'N' And &tpovtoopc <> 'P'
+            &BnjErrCod = 472
+            Do 'Log Error'    
+        Else
+            &BnjTvto = &tpovtoopc
+            &BnjErrCod = 478
+            Do 'Log Error'    
+        EndIf
+    EndIf      
+
+    &NewFvto = NullValue(&NewFvto)
+    If &PDebug = 'S'
+        &aDbgMsg = Concat('Cuenta: ',str(&LBnCta)) Do 'Genero Debug'
+        &aDbgMsg = Concat('Operación: ',str(&LBnOpe)) Do 'Genero Debug'
+        &aDbgMsg = Concat('Antes &NewFvto: ',Dtoc(&NewFvto)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BNJEmp: ',str(&BNJEmp)) Do 'Genero Debug'
+        &aDbgMsg = Concat('LBNSuc: ',str(&LBnSuc)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BNJFval: ',Dtoc(&BnjFval)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BnjPzo: ',str(&BnjPzo)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BnjTdia: ',str(&BnjTdia)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BnjTvto: ',&BnjTvto) Do 'Genero Debug'
+    EndIf
+    &NewFvto = NullValue(&NewFvto)
+    If &BnjTvto = 'P' .Or. &BnjTvto='A' .Or. &BnjTvto= 'N'  //&BnjTvto = ' ' .OR. saco esta opción dado que se considera error en el control anterior (chequear)
+        Call(RRg0003,&BNJEmp,&LBnSuc,&BnjFval,&NewFvto,&BnjPzo,&BnjTdia,&BnjTvto)
+        
+        &PruebaPlazo = &NewFvto - &BnjFval
+        If &PDebug = 'S'
+            &aDbgMsg = Concat('Después &NewFvto: ',Dtoc(&NewFvto)) Do 'Genero Debug'
+            &aDbgMsg = Concat('&Bnjfvto: ',Dtoc(&BnjFvto)) Do 'Genero Debug'
+            &aDbgMsg = Concat('Nuevo Plazo: ',str(&PruebaPlazo)) Do 'Genero Debug'
+        EndIf
+        If &NewFvto <> &BnjFvto
+            &BnjErrCod = 1471  //Error fecha vto respecto al plazo (fecha calculada &NewFvto no corresponde a la establecida en Bnjfvto)
+            Do 'Log Error' 
+        EndIf
+    EndIf  
+
+    If .Not. Null(&BnjTtas)        
+        &Ok = 'N'
+        Do 'Control_Ttasa'
+        If &Ok = 'N'
+            &Bnjttas = &tpotasopc
+            Do 'Control_Ttasa'
+            If &Ok = 'N'
+                &BnjErrCod = 1288
+                Do 'Log Error'
+            Else
+                &Bnjttas = &tpotasopc
+                &BnjErrCod = 480
+                Do 'Log Error'            
+            EndIf            
+        EndIf        
+    Else
+        &Bnjttas = &tpotasopc
+        Do 'Control_Ttasa'
+        If &Ok = 'N'
+            &BnjErrCod = 1288
+            Do 'Log Error'            
+        Else
+            &Bnjttas = &tpotasopc
+            &BnjErrCod = 480
+            Do 'Log Error'            
+        EndIf
+    EndIf    
+
+    // Chequeo de Tipo de Año
+    If &BnjTano <> 1 And &BnjTano <> 2
+        If &tpoanoopc <> 1 And &tpoanoopc <>2
+            &BnjErrCod = 473
+            Do 'Log Error'    
+        Else
+            &BnjTano = &tpoanoopc
+            &BnjErrCod = 477
+            Do 'Log Error'  
+        EndIf
+    EndIf
+
+    If &BnjTint <> 'C' And &BnjTint <> 'M' //--Se envia M para soportar DPF con pago de interes adelantado - EFECTIVA
+        &BnjErrCod = 474
+        Do 'Log Error'
+    EndIf
+ 
+    If &BnjTint <> 'M' //--Efectiva si ya se pago interes adelantado no debe controlarlo.
+        //Controlo valores de la FSD010, Aoimp, Aonume, Aotasa, Plazo. Solo si es nomimal
+        If &tasefec = 'N' Or &Periodico = 'N' // solo no aplica para los periódicos con tasa efectiva
+            &Ttas    = &BnjTtas
+            &Tasa    = &BnjTasa
+            &Paotano = &BnjTano
+            &Plazo   = &BnjPzo
+            &Paotint = &BnjTint
+            &Coef    = NullValue(&Coef)
+    
+            If &PDebug = 'S'
+                &aDbgMsg = Concat('Tipo de tasa Ttas: ',str(&Ttas)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Tasa: ',str(&Tasa,11,6)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Tipo de año Paotano: ',str(&Paotano)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Plazo: ',str(&Plazo)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Tipo de calculo de intereses: ',&Paotint) Do 'Genero Debug'
+            EndIf
+    
+            Call(RRg0004,&Ttas,&Tasa,&Paotano,&Plazo,&Paotint,&Coef)
+                
+            &ImpAux = NullValue(&ImpAux)
+            &ImpAux = &BnjImp * &Coef
+    
+            If &PDebug = 'S'
+                &aDbgMsg = Concat('Importe: ',str(&BnjImp,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Coeficiente: ',str(&Coef,15,9)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Interes ImpAux: ',str(&ImpAux,18,2)) Do 'Genero Debug'
+            EndIf
+    
+    //        If &Paotint = 'M'
+    //            &ImpAux = &BnjImp - &ImpAux
+    //            If &PDebug = 'S'
+    //                &aDbgMsg = Concat('Interes ImpAux TInt M: ',str(&ImpAux,18,2)) Do 'Genero Debug'
+    //            EndIf
+    //        EndIf
+      
+            //Tolerancia en diferencias de intereses calculadas con registro
+            /////////////////////////////////////////////////////////////////////////////////////////////
+            &IntDesde = BnjNume - &tolerancia
+            &IntHasta = BnjNume + &tolerancia
+    
+            If &PDebug = 'S'
+                &aDbgMsg = Concat('IntDesde: ',str(&IntDesde,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('IntHasta: ',str(&IntHasta,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('BjnNume: ',str(BnjNume,18,2)) Do 'Genero Debug'
+            EndIf
+        
+            If &ImpAux <> BnjNume
+                If &IntDesde <= &ImpAux  .And. &ImpAux <= &IntHasta
+                //Entra en la tolerancia    
+                Else  
+                    &BnjErrCod = 1474
+                    Do 'Log Error'
+                EndIf
+            EndIf
+            
+            //--&BnjNume = &ImpAux //--SE MANTIENE ORIGINAÑ
+        EndIf
+    EndIf
+    
+    //Controlo eventos FSD012, si existen. Solo para DPF, Tasa Variable.
+    If &TasaV = 'S'        
+        &ErrorEvento = &HuboError
+        Call(PBCD012,&BNJEmp,&BNJCod,&Modulo,&LBnSuc,&LBnMda,&LBnPap,&LBnCta,&LBnOpe,&LBnSOp,&LBnTOp,&ErrorEvento,&bnjevfval,&pgplat,&Existe)        
+        If &ErrorEvento = 'S'        
+            &HuboError = 'S'    
+        EndIf
+    EndIf
+
+    //Control existencia producto FSD010 (duplicado)
+    //--- Controlo existencia de Fsd010
+    &ExiFSD010 = 'N'
+    For Each
+    Where Pgcod = &BNJEmp
+    Where Aomod = &Modulo
+    Where Aosuc = &LBnSuc
+    Where Aomda = &LBnMda
+    Where Aopap = &LBnPap
+    Where Aocta = &LBnCta
+    Where Aooper= &LBnOpe
+    Where Aosbop= &LBnSOp
+    Where Aotope= &LBnTOp
+    Defined By Aoimp
+        &ExiFSD010 = 'S'
+    EndFor
+    If &ExiFSD010 = 'S'
+       &BnjErrCod = 1472
+       Do 'Log Error'
+    EndIf
+    
+    //Instrucciones, FSR111
+    &ErrorInstr = &HuboError
+    &No7ni8 = 'N'
+    Call(PBCR111,&BNJEmp,&BNJCod,&Modulo,&LBnSuc,&LBnMda,&LBnPap,&LBnCta,&LBnOpe,&LBnSOp,&LBnTOp,&Periodico,&TipoPeriod,&No7ni8,\
+                &ErrorInstr,&pgplat,&ModCCCA())               
+    If &ErrorInstr = 'S'  
+        &HuboError = 'S'
+    EndIf 
+    
+    If &PDebug = 'S'
+        &aDbgMsg = Concat('&Periodico: ',&Periodico) Do 'Genero Debug'
+        &aDbgMsg = Concat('&No7ni8: ',&No7ni8) Do 'Genero Debug'
+    EndIf
+                
+    If &Periodico = 'S'
+        If &No7ni8 <> '6' //--FCASTILLO
+            If &No7ni8 = 'N'
+                &BnjErrCod = 219
+                Do 'Log Error'
+            Else
+                If &TipoPeriod = 1
+                    If &No7ni8 = '8'
+                        &BnjErrCod = 217
+                        Do 'Log Error'    
+                    EndIf
+                Else
+                    If &TipoPeriod = 2
+                        If &No7ni8 = '7'
+                            &BnjErrCod = 218
+                            Do 'Log Error'    
+                        EndIf
+                    EndIf
+                EndIf
+            EndIf
+        EndIf
+    EndIf
+    
+    //Controlo FSD601 en caso de tener intrucción 7 u 8.
+    If &Periodico = 'S' .And. (&No7ni8 = '7' .Or. &No7ni8 = '8'.Or. &No7ni8 = '6')//--FCASTILLO
+        &Error601 = &HuboError
+        Call(PBCD601,&BNJEmp,&BNJCod,&Modulo,&LBnSuc,&LBnMda,&LBnPap,&LBnCta,&LBnOpe,&LBnSOp,&LBnTOp,&BnjFval,&BnjFvto,&BnjImp,&BnjPzo,&BnjNume,&CantI,&CantM,&Pzo,&Int,&Error601,&pgplat,&BnjTtas,&BnjTasa,&BnjTano,&BnjTint,&tolerancia,&Pgfape)
+        
+        If &Error601 = 'S'
+            &HuboError = 'S'  
+        Else        
+            If &CantI = NullValue(&CantI)
+                &BnjErrCod = 442
+                Do 'Log Error'   
+            EndIf
+        
+            If &CantM <> 1
+                &BnjErrCod = 443
+                Do 'Log Error'    
+            EndIf
+        
+            If &Pzo <> &BnjPzo
+                &BnjErrCod = 444
+                Do 'Log Error'    
+            EndIf
+            If &Int <> &BnjNume
+                &BnjErrCod = 445
+            //    DO 'Log Error'   
+            EndIf   
+        EndIf
+        &error602 = &HuboError                       
+        If &HuboError = 'N'
+            &error602 = 'D'
+        EndIf
+        Call(PBCD602,&BNJEmp,&BnjCod,&Modulo,&LBnSuc,&LBnMda,&LBnPap,&LBnCta,&LBnOpe,&LBnSOp,&LBnTOp,&error602,&pgplat,&concancelado,&pgclte)
+        If &Error602 = 'S'
+            &HuboError = 'S'
+        EndIf
+    EndIf
+    &Contador = &Contador + 1
+EndSub
+
+Sub 'EndodoFraccionamiento'
+    // Control de Endosos y Fraccionamientos
+    &hayendofra  = 'N' // indica si hay endoso o fraccionamiento para la operación
+    &Filler(999) = 'BJR011'
+    //For Each Order  BnjEmp BnjCod BnjR1cod BnjR1mod BnjR1suc BnjR1mda BnjR1pap BnjR1cta BnjR1oper BnjR1sbop BnjR1tope BnjRelcod BnjR2mod BnjR2cta BnjR2oper BnjR2sbop //BJR011
+    For Each BnjEmp, BnjCod, BnjR1suc, BnjR1cta
+    Where BnjEmp    = &BNJEmp
+    Where BnjCod    = &BNJCod
+    Where BnjR1suc  = &LBnSuc
+    Where BnjR1cta  = &LBnCta
+    Where BnjR1mda  = &LBnMda
+    Where BnjR1pap  = &LBnPap
+    Where BnjR1oper = &LBnOpe
+    Where BnjR1sbop = &LBnSOp
+    Where BnjR1tope = &LBnTOp
+    Defined By BnjR2cod
+        If BnjRelcod = &fracc Or BnjRelcod = &endoso
+            &hayendofra = 'S'
+        EndIf    
+        If BnjRelcod <> 2 And BnjRelcod <> &fracc And BnjRelcod <> &endoso And BnjRelcod <> 15
+            &BnjErrCod = 488
+            Do 'Log Error'    
+        Else
+            If BnjRelcod = &endoso And BnjR1cta = BnjR2cta
+                &BnjErrCod = 489
+                Do 'Log Error'    
+            EndIf
+            If BnjRelcod = &endoso And (BnjEmp <> BnjR2cod Or BnjR1suc <> BnjR2suc Or BnjR1mda <> BnjR2mda Or BnjR1pap <> BnjR2pap Or BnjR1oper <> BnjR2oper Or BnjR1sbop <> BnjR2sbop Or BnjR1tope <> BnjR2tope)
+                &BnjErrCod = 490
+                Do 'Log Error'    
+            EndIf
+            If (BnjRelcod = 2 Or BnjRelcod = 15) And &Modulo = BnjR2mod
+                &BnjErrCod = 491
+                Do 'Log Error'    
+            EndIf
+            If BnjRelcod = &endoso And &Modulo <> BnjR2mod
+                &BnjErrCod = 492
+                Do 'Log Error'    
+            EndIf
+            &Existe = 'N'
+            For Each Pgcod Scmod Scmda Scpap Sccta Scsuc Scoper Scsbop Sctope // fsd011
+            Where Pgcod  = BnjR2cod
+            Where Scmod  = BnjR2mod
+            Where Scmda  = BnjR2mda
+            Where Scpap  = BnjR2pap
+            Where Sccta  = BnjR2cta
+            Where Scsuc  = BnjR2suc
+            Where Scoper = BnjR2oper
+            Where Scsbop = BnjR2sbop
+            Where Sctope = BnjR2tope
+            Defined By Scsdo
+                &Existe = 'S'            
+            EndFor
+            If &Existe = 'N'
+                &BnjErrCod = 493
+                Do 'Log Error'    
+            EndIf
+        EndIf
+        If &HuboError = 'N'
+            &BnjR011Est = 'R'
+//            BnjR011Est = 'R'
+        Else
+            &BnjR011Est = 'X'
+//            BnjR011Est = 'X'
+        EndIf
+        Call(PBNJACT1, &BNJEmp, &BnjCod, &Proc, &LBnSuc, &LBnMda, &LBnPap, &LBnCta, &LBnOpe, &LBnSOp, &LBnTOp, &BnjR011Est, &Filler())
+    EndFor 
+    &Filler(999) = ''
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'GraboLog'
+    &aDbgMsg = Concat('+ Secuencia: ',Str(&y,5,0),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&SucdAux,5,0)),' SucD/H ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&SuchAux,5,0)),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' CtaD/H ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')    
+    &aDbgMsg = Concat(&aDbgMsg,Trim(&C1),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')                Do 'Genero Debug'
+EndSub
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Sub 'GraboLog1'
+    &aDbgMsg = Concat('+ Secuencia: ',Str(&y,5,0),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')    
+    &aDbgMsg = Concat(&aDbgMsg,Trim(&C1),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')                Do 'Genero Debug'
+EndSub
+
+Sub 'Mensaje'
+Print Mensaje
+EndSub
