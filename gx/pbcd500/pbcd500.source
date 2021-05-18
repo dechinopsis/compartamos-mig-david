@@ -494,8 +494,8 @@ Sub 'ProcesoXCta'
         &Bnjtano   = BnjTano
         &BnjTint   = BnjTint
         
-        &BnjIm2    = BnjIm2   
-        &BnjIm3    = BnjIm3  
+        &BnjIm2    = BnjIm2   //Intereses
+        &BnjIm3    = BnjIm3   //Resultado
 
         &Control57 = 'S'
         If BnjCoN1 = 9
@@ -504,7 +504,6 @@ Sub 'ProcesoXCta'
 
         Do 'Proceso'
         Do 'EndodoFraccionamiento'
-   
                         
         If &HuboError = 'N'
             &BnjOK = 'R'
