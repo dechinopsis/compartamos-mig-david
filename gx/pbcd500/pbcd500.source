@@ -13,108 +13,10 @@ If &PDebug = 'S'
     &aDbgMsg = Concat('+ Por cuenta: ', &PorCuenta,' ')     Do 'Genero Debug'
 EndIf
 
-&VecDSuc() = 0
-&VecHSuc() = 0
-&VecDCta() = 0
-&VecHCta() = 0
 
-&Tabla = 'BNJ002'
-Call(PBNJBLOQ, &BNJEmp, &BNJCod, &Proc, &Sucd, &Such, &CliDde, &CliHta, &BloqCommit, &PorCuenta, &CantPasos, &VecDSuc(), &VecHSuc(), &VecDCta(), &VecHCta(), &TotalRegistros, &Tabla)
-
-If &PDebug = 'S'
-    &aDbgMsg = Concat('+ Cantidad de pasos: ', Trim(Str(&CantPasos,10,0)),' ')        Do 'Genero Debug'
-    &aDbgMsg = Concat('+ Total registros: ', Trim(Str(&TotalRegistros,18,0)),' ')     Do 'Genero Debug'
-EndIf
-
-If &TotalRegistros <> 0
-    If &PorCuenta = 'N'
-        &Y = 1
-        Do While &Y <= &CantPasos
-            &SucdAux = &VecDSuc(&y)
-            &SuchAux = &VecHSuc(&y)
-
-            If &SuchAux <> &SucdAux
-                &SuchAux   = &VecDSuc(&y)
-                &CliDdeAux = &VecDCta(&Y)
-                &CliHtaAux = &CliHta
-
-                Do 'ProcesoXSucCta' // //proceso primer sucursal su rango
-
-                If &PDebug = 'S'
-                    Do 'GraboLog'
-                EndIf
-
-                &SucdAux   = &VecDSuc(&y) + 1
-                &SuchAux   = &VecHSuc(&y) - 1
-                &CliDdeAux = &CliDde
-                &CliHtaAux = &CliHta
-
-                If &SucdAux <= &SuchAux
-                    Do 'ProcesoXSucCta' // //posibles sucursales intermedias entre desde hasta todo el rango
-                    If &PDebug = 'S'
-                        Do 'GraboLog'
-                    EndIf
-                EndIf
-
-                &SucdAux   = &VecHSuc(&y)
-                &SuchAux   = &VecHSuc(&y)
-                &CliDdeAux = &CliDde
-                &CliHtaAux = &VecHCta(&Y)
-
-                Do 'ProcesoXSucCta'  //Ultima sucursal y cliente desde incial hasta el ultimo registro que corrresponda
-
-                If &pgplat <> 'AS'
-                    Commit
-                EndIf
-
-                If &PDebug = 'S'
-                    Do 'GraboLog'
-                EndIf
-            Else
-                &SucdAux   = &VecHSuc(&y)
-                &SuchAux   = &VecHSuc(&y)
-                &CliDdeAux = &VecDCta(&Y)
-                &CliHtaAux = &VecHCta(&Y)
-
-                Do 'ProcesoXSucCta'
-
-                If &pgplat <> 'AS'
-                    Commit
-                EndIf
-
-                If &PDebug = 'S'
-                    Do 'GraboLog'
-                EndIf
-            EndIf
-
-            If &TotalRegistros = &Contador
-                &Y = &CantPasos
-            EndIf
-
-            &y += 1
-        EndDo
-    Else
-        &y = 1
-        Do While &y <= &CantPasos
-            &CliDdeAux = &VecDCta(&Y)
-            &CliHtaAux = &VeChcta(&y)
-            Do 'ProcesoXCta'
-            If &pgplat <> 'AS'
-                Commit
-            EndIf
-            If &PDebug = 'S'
-                Do 'GraboLog1'
-            EndIf
-            If &CliHtaAux > &CliHta
-                &CliHtaAux = &CliHta
-            EndIf
-            If &TotalRegistros = &Contador
-                &Y = &CantPasos
-            EndIf
-            &y += 1
-        EndDo
-    EndIf //&PorCuenta = 'N'
-EndIf //&TotalRegistros <> 0
+&CliDdeAux = &CliDde
+&CliHtaAux =  &CliHta
+Do 'ProcesoXCta'
 
 If &PDebug = 'S'
     &aDbgMsg = Concat('+ ParametrosF: ',Trim(&C1),' ')
@@ -122,14 +24,6 @@ If &PDebug = 'S'
     &aDbgMsg = Concat(&aDbgMsg,Time(),' ')
     &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&Contador,15,0)),' + Registros Procesados: ')         Do 'Genero Debug'
 EndIf
-
-//Quito marca de ejecución
- &EstCTRL  = 'F'
- &MIGESTRi = &TotalRegistros
- &MIGESTRg = &Contador
- &MIGESTOk = &CantReg
- &MIGESTEr = &CantErr
-Call(PBNJCTRL,&BNJEmp,&BNJCod,&P1,&C1,&C2,&tipo,'C',&EstCTRL,&MIGESTRi,&MIGESTRg,&MIGESTOk,&MIGESTEr)
 
  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // -------------------------------- S U B R U T I N A S ------------------------------------------------------------ S U B R U T I N A S --------------------------------------------//
@@ -560,7 +454,8 @@ EndSub  // 'Genero Debug'
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Sub 'ProcesoXCta'
     // --- Leer y validar la Bandeja
-    For Each BnjEmp BnjCod BnjOK BnjCta   // BNJ002
+
+    For Each BnjEmp BnjCod BnjOK BnjCta
     Where BnjEmp = &BNJEmp
     Where BnjCod = &BNJCod
     Where BnjOK  = &Proc
@@ -610,17 +505,6 @@ Sub 'ProcesoXCta'
         Do 'Proceso'
         Do 'EndodoFraccionamiento'
 
-//        BnjTtac = &TipoTC
-//        BnjTasc = &TasaTC
-//        //Por si varian de acuerdo a dato de guía
-//        BnjTtas = &Bnjttas
-//        BnjTano = &BnjTano
-//        BnjTvto = &BnjTvto
-//        BnjTdia = &BnjTdia
-//
-//        // --- Grabar Modulo
-//        BnjCbcu = &Modulo
-
         If &HuboError = 'N'
             &BnjOK = 'R'
             &CantReg = &CantReg + 1
@@ -635,93 +519,9 @@ Sub 'ProcesoXCta'
         &Filler(6) = Str(BnjTdia)
         &Filler(7) = Str(BnjCbcu)
         Call(PBNJACT1, &BNJEmp, &BnjCod, &Proc, &LBnSuc, &LBnMda, &LBnPap, &LBnCta, &LBnOpe, &LBnSOp, &LBnTOp, &BnjOK, &Filler())
-//        Call(PBPD400B,&BnjEmp,&BnjCod,&LBnSuc,&LBnMda,&LBnPap,&LBnCta, &LBnOpe, &LBnSOp,&LBnTOp,&BnjOK)
     EndFor
 EndSub
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Sub 'ProcesoXSucCta'
-    // --- Leer y validar la Bandeja
-    For Each BnjEmp BnjCod BnjOK BnjSuc BnjCta   // BNJ002
-    Where BnjEmp = &BNJEmp
-    Where BnjCod = &BNJCod
-    Where BnjOK  = &Proc
-    Where BnjSuc >= &SucdAux
-    Where BnjSuc <= &SuchAux
-    Where BnjCta >= &CliDdeAux
-    Where BnjCta <= &CliHtaAux
-    Defined By BnjNume
-
-        &LBnMod = NullValue(&LBnMod )
-        &LBnSuc = BnjSuc
-        &LBnMda = BnjMda
-        &LBnPap = BnjPap
-        &LBnCta = BnjCta
-        &LBnOpe = BnjOpe
-        &LBnSOp = BnjSbOp
-        &LBnTOp = BnjTOpe
-        &LBnChq = NullValue(&LBnChq )
-
-        &BnjStat   = BnjStat
-        &BnjFval   = BnjFval
-        &BnjSdo    = BnjSdo
-        &BnjImp    = BnjImp
-        &BnjNume   = BnjNume
-        &BnjFvto   = BnjFvto
-        &BnjFe99   = BnjFe99
-        &BnjPlus   = BnjPlus
-        &BnjPzo    = BnjPzo
-        &BnjTasa   = BnjTasa
-        &BnjPeriod = BnjPeriod
-        &BnjEven   = BnjEven
-        &BnjFnum   = BnjFnum
-        &BnjCltcod = BnjCltcod
-        &BnjDrev   = BnjDrev
-        &BnjTdia   = BnjTdia
-        &BnjTvto   = BnjTvto
-        &Bnjttas   = BnjTtas
-        &Bnjtano   = BnjTano
-        &BnjTint   = BnjTint
-
-        &BnjIm2    = BnjIm2   //Intereses
-        &BnjIm3    = BnjIm3   //Resultado
-
-        &Control57 = 'S'
-        If BnjCoN1 = 9
-            &Control57 = 'N'
-        EndIf
-
-        Do 'Proceso'
-        Do 'EndodoFraccionamiento'
-
-//        BnjTtac = &TipoTC
-//        BnjTasc = &TasaTC
-//        //Por si varian de acuerdo a dato de guía
-//        BnjTtas = &Bnjttas
-//        BnjTano = &BnjTano
-//        BnjTvto = &BnjTvto
-//        BnjTdia = &BnjTdia
-//
-//        // --- Grabar Modulo
-//        BnjCbcu = &Modulo
-
-        If &HuboError = 'N'
-            &BnjOK = 'R'
-            &CantReg = &CantReg + 1
-        Else
-            &BnjOK = 'X'
-        EndIf
-        &Filler(1) = Str(BnjTtac)
-        &Filler(2) = Str(BnjTasc,11,6)
-        &Filler(3) = Str(BnjTtas)
-        &Filler(4) = Str(BnjTano)
-        &Filler(5) = BnjTvto
-        &Filler(6) = Str(BnjTdia)
-        &Filler(7) = Str(BnjCbcu)
-        Call(PBNJACT1, &BNJEmp, &BnjCod, &Proc, &LBnSuc, &LBnMda, &LBnPap, &LBnCta, &LBnOpe, &LBnSOp, &LBnTOp, &BnjOK, &Filler())
-//        Call(&PgmCall,&BnjEmp,&BnjCod,&LBnSuc,&LBnMda,&LBnPap,&LBnCta, &LBnOpe, &LBnSOp,&LBnTOp,&BnjOK) //FM 16/12/2014 (ERROR fetch out of sequence  AL HACER VUELCO, LLAMO A UN PROGRMA EXTERNO QUE MODIFICA EL ESTADO)
-    EndFor
-EndSub
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 Sub 'Proceso'
@@ -1156,7 +956,7 @@ Sub 'Proceso'
             If &PDebug = 'S'
                 &aDbgMsg = Concat('IntDesde: ',str(&IntDesde,18,2)) Do 'Genero Debug'
                 &aDbgMsg = Concat('IntHasta: ',str(&IntHasta,18,2)) Do 'Genero Debug'
-                &aDbgMsg = Concat('BjnNume: ',str(BnjNume,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('BjnNume: ',Str(BnjNume,18,2)) Do 'Genero Debug'
             EndIf
 
             If &ImpAux <> BnjNume
@@ -1346,26 +1146,6 @@ Sub 'EndodoFraccionamiento'
         Call(PBNJACT1, &BNJEmp, &BnjCod, &Proc, &LBnSuc, &LBnMda, &LBnPap, &LBnCta, &LBnOpe, &LBnSOp, &LBnTOp, &BnjR011Est, &Filler())
     EndFor
     &Filler(999) = ''
-EndSub
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Sub 'GraboLog'
-    &aDbgMsg = Concat('+ Secuencia: ',Str(&y,5,0),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&SucdAux,5,0)),' SucD/H ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&SuchAux,5,0)),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' CtaD/H ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(&C1),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')                Do 'Genero Debug'
-EndSub
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Sub 'GraboLog1'
-    &aDbgMsg = Concat('+ Secuencia: ',Str(&y,5,0),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(&C1),' ')
-    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')                Do 'Genero Debug'
 EndSub
 
 Sub 'Mensaje'
