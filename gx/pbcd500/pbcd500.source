@@ -15,7 +15,7 @@ EndIf
 
 
 &CliDdeAux = &CliDde
-&CliHtaAux =  &CliHta
+&CliHtaAux = &CliHta
 Do 'ProcesoXCta'
 
 If &PDebug = 'S'
@@ -841,14 +841,14 @@ Sub 'Proceso'
 
     &NewFvto = NullValue(&NewFvto)
     If &PDebug = 'S'
-        &aDbgMsg = Concat('Cuenta: ',str(&LBnCta)) Do 'Genero Debug'
-        &aDbgMsg = Concat('Operación: ',str(&LBnOpe)) Do 'Genero Debug'
-        &aDbgMsg = Concat('Antes &NewFvto: ',Dtoc(&NewFvto)) Do 'Genero Debug'
-        &aDbgMsg = Concat('BNJEmp: ',str(&BNJEmp)) Do 'Genero Debug'
-        &aDbgMsg = Concat('LBNSuc: ',str(&LBnSuc)) Do 'Genero Debug'
-        &aDbgMsg = Concat('BNJFval: ',Dtoc(&BnjFval)) Do 'Genero Debug'
-        &aDbgMsg = Concat('BnjPzo: ',str(&BnjPzo)) Do 'Genero Debug'
-        &aDbgMsg = Concat('BnjTdia: ',str(&BnjTdia)) Do 'Genero Debug'
+        &aDbgMsg = Concat('Cuenta: ',Str(&LBnCta)) Do 'Genero Debug'
+        &aDbgMsg = Concat('Operación: ',Str(&LBnOpe)) Do 'Genero Debug'
+        &aDbgMsg = Concat('Antes &NewFvto: ',DtoC(&NewFvto)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BNJEmp: ',Str(&BNJEmp)) Do 'Genero Debug'
+        &aDbgMsg = Concat('LBNSuc: ',Str(&LBnSuc)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BNJFval: ',DtoC(&BnjFval)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BnjPzo: ',Str(&BnjPzo)) Do 'Genero Debug'
+        &aDbgMsg = Concat('BnjTdia: ',Str(&BnjTdia)) Do 'Genero Debug'
         &aDbgMsg = Concat('BnjTvto: ',&BnjTvto) Do 'Genero Debug'
     EndIf
     &NewFvto = NullValue(&NewFvto)
@@ -857,9 +857,9 @@ Sub 'Proceso'
 
         &PruebaPlazo = &NewFvto - &BnjFval
         If &PDebug = 'S'
-            &aDbgMsg = Concat('Después &NewFvto: ',Dtoc(&NewFvto)) Do 'Genero Debug'
-            &aDbgMsg = Concat('&Bnjfvto: ',Dtoc(&BnjFvto)) Do 'Genero Debug'
-            &aDbgMsg = Concat('Nuevo Plazo: ',str(&PruebaPlazo)) Do 'Genero Debug'
+            &aDbgMsg = Concat('Después &NewFvto: ',DtoC(&NewFvto)) Do 'Genero Debug'
+            &aDbgMsg = Concat('&Bnjfvto: ',DtoC(&BnjFvto)) Do 'Genero Debug'
+            &aDbgMsg = Concat('Nuevo Plazo: ',Str(&PruebaPlazo)) Do 'Genero Debug'
         EndIf
         If &NewFvto <> &BnjFvto
             &BnjErrCod = 1471  //Error fecha vto respecto al plazo (fecha calculada &NewFvto no corresponde a la establecida en Bnjfvto)
@@ -923,10 +923,10 @@ Sub 'Proceso'
             &Coef    = NullValue(&Coef)
 
             If &PDebug = 'S'
-                &aDbgMsg = Concat('Tipo de tasa Ttas: ',str(&Ttas)) Do 'Genero Debug'
-                &aDbgMsg = Concat('Tasa: ',str(&Tasa,11,6)) Do 'Genero Debug'
-                &aDbgMsg = Concat('Tipo de año Paotano: ',str(&Paotano)) Do 'Genero Debug'
-                &aDbgMsg = Concat('Plazo: ',str(&Plazo)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Tipo de tasa Ttas: ',Str(&Ttas)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Tasa: ',Str(&Tasa,11,6)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Tipo de año Paotano: ',Str(&Paotano)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Plazo: ',Str(&Plazo)) Do 'Genero Debug'
                 &aDbgMsg = Concat('Tipo de calculo de intereses: ',&Paotint) Do 'Genero Debug'
             EndIf
 
@@ -936,9 +936,9 @@ Sub 'Proceso'
             &ImpAux = &BnjImp * &Coef
 
             If &PDebug = 'S'
-                &aDbgMsg = Concat('Importe: ',str(&BnjImp,18,2)) Do 'Genero Debug'
-                &aDbgMsg = Concat('Coeficiente: ',str(&Coef,15,9)) Do 'Genero Debug'
-                &aDbgMsg = Concat('Interes ImpAux: ',str(&ImpAux,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Importe: ',Str(&BnjImp,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Coeficiente: ',Str(&Coef,15,9)) Do 'Genero Debug'
+                &aDbgMsg = Concat('Interes ImpAux: ',Str(&ImpAux,18,2)) Do 'Genero Debug'
             EndIf
 
     //        If &Paotint = 'M'
@@ -954,8 +954,8 @@ Sub 'Proceso'
             &IntHasta = BnjNume + &tolerancia
 
             If &PDebug = 'S'
-                &aDbgMsg = Concat('IntDesde: ',str(&IntDesde,18,2)) Do 'Genero Debug'
-                &aDbgMsg = Concat('IntHasta: ',str(&IntHasta,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('IntDesde: ',Str(&IntDesde,18,2)) Do 'Genero Debug'
+                &aDbgMsg = Concat('IntHasta: ',Str(&IntHasta,18,2)) Do 'Genero Debug'
                 &aDbgMsg = Concat('BjnNume: ',Str(BnjNume,18,2)) Do 'Genero Debug'
             EndIf
 
@@ -1138,10 +1138,8 @@ Sub 'EndodoFraccionamiento'
         EndIf
         If &HuboError = 'N'
             &BnjR011Est = 'R'
-//            BnjR011Est = 'R'
         Else
             &BnjR011Est = 'X'
-//            BnjR011Est = 'X'
         EndIf
         Call(PBNJACT1, &BNJEmp, &BnjCod, &Proc, &LBnSuc, &LBnMda, &LBnPap, &LBnCta, &LBnOpe, &LBnSOp, &LBnTOp, &BnjR011Est, &Filler())
     EndFor
