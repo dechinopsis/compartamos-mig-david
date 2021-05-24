@@ -1,180 +1,32 @@
-//---------------->>>>>
-//-- CRodríguez - 07/12/2016 - Se agrega código para que no se pisen las claves de los saldos que matan al saldo de verdad, cuando se escribe la FSD016 ejecutando en varias vías. Guardando la subope diferente según cada
-//-- vía ejecutada se evita el problema
-&SubOpeFalsa = 0
-For Each BnjEmp BnjCod BnjSucPar BnjCliDde //-- BNJ021
-    Where BnjEmp    = &BNJEmp
-    Where BnjCod    = &BNJCod
-    Defined By BnjCliHta
-
-    &SubOpeFalsa = &SubOpeFalsa + 1
-    If BnjCliDde = Val(Trim(&C1))
-        Exit
-    EndIf
-EndFor
-//----------------<<<<<
-
 Do 'Inicio' //Parametria
 
-If &ContaXBloque = 'S'
-//    Do 'Contabiliza Por Bloques'
-Else
-    //INDICES
-    //BnjEmp, BnjCod, BnjOK, BnjSuc, BnjCta (Sucursal/Cuenta)
-    //BnjEmp, BnjCod, BnjOK, BnjCta         (Cuenta)
+//INDICES
+//BnjEmp, BnjCod, BnjOK, BnjSuc, BnjCta (Sucursal/Cuenta)
+//BnjEmp, BnjCod, BnjOK, BnjCta         (Cuenta)
 
-    &PorCuenta = 'N'  //(Sucursal/Cuenta)
-    If (&Sucd = 0 And &Such = 99999) Or (&Sucd = 0 And &Such = 0)
-        &PorCuenta = 'S'
-    EndIf
+&PorCuenta = 'S'
 
-    If &PDebug = 'S'
-        &aDbgMsg = Concat('+ Por cuenta: ', &PorCuenta,' ')     Do 'Genero Debug'
-    EndIf
-
-    &BnjOk = 'R'
-
-    //**************************************************COMENTARIO**********************************
-    //Dado que el proceso pw103 termina realizando commit. el uso de bloques de commit no es válido
-    //De requerirse dicho uso (bloques de commit) descomentar desde AAA hasta BBB, y comentar desde CCC hasta DDD
-    //AAA
-    //&Tabla = 'BNJ002'
-    //Call(PBNJBLOQ,&BNJEmp,&BNJCod,&BnjOk,&Sucd,&Such,&CliDde,&CliHta,&BloqCommit,&PorCuenta,&CantPasos,&VecDSuc(),&VeChsuc(),&VecDCta(),&VeChcta(),&TotalRegistros,&Tabla)
-    //
-    //If &PDebug = 'S'
-    //    &aDbgMsg = Concat('+ Cantidad de pasos: ', Trim(Str(&CantPasos,10,0)),' ')        Do 'Genero Debug'
-    //    &aDbgMsg = Concat('+ Total registros: ', Trim(Str(&TotalRegistros,18,0)),' ')     Do 'Genero Debug'
-    //EndIf
-    //
-    //If &TotalRegistros <> 0
-    //    If &PorCuenta = 'N'
-    //        &Y = 1
-    //        Do While &Y <= &CantPasos
-    //            &SucdAux = &VecDSuc(&y)
-    //            &SuchAux = &VecHSuc(&y)
-    //
-    //            If &SuchAux <> &SucdAux
-    //                &SuchAux   = &VecDSuc(&y)
-    //                &CliDdeAux = &VecDCta(&Y)
-    //                &CliHtaAux = &CliHta
-    //
-    //                Do 'ProcesoXSucCta' // //proceso primer sucursal su rango
-    //
-    //                If &PDebug = 'S'
-    //                    Do 'GraboLog'
-    //                EndIf
-    //
-    //                &SucdAux   = &VecDSuc(&y) + 1
-    //                &SuchAux   = &VecHSuc(&y) - 1
-    //                &CliDdeAux = &CliDde
-    //                &CliHtaAux = &CliHta
-    //
-    //                If &SucdAux <= &SuchAux
-    //                    Do 'ProcesoXSucCta' // //posibles sucursales intermedias entre desde hasta todo el rango
-    //                    If &PDebug = 'S'
-    //                        Do 'GraboLog'
-    //                    EndIf
-    //                EndIf
-    //
-    //                &SucdAux   = &VecHSuc(&y)
-    //                &SuchAux   = &VecHSuc(&y)
-    //                &CliDdeAux = &CliDde
-    //                &CliHtaAux = &VecHCta(&Y)
-    //
-    //                Do 'ProcesoXSucCta'  //Ultima sucursal y cliente desde incial hasta el ultimo registro que corrresponda
-    //
-    //                If &pgplat <> 'AS'
-    //                    Commit
-    //                EndIf
-    //
-    //                If &PDebug = 'S'
-    //                    Do 'GraboLog'
-    //                EndIf
-    //            Else
-    //                &SucdAux   = &VecHSuc(&y)
-    //                &SuchAux   = &VecHSuc(&y)
-    //                &CliDdeAux = &VecDCta(&Y)
-    //                &CliHtaAux = &VecHCta(&Y)
-    //
-    //                Do 'ProcesoXSucCta'
-    //
-    //                If &pgplat <> 'AS'
-    //                    Commit
-    //                EndIf
-    //
-    //                If &PDebug = 'S'
-    //                    Do 'GraboLog''
-    //                EndIf
-    //            EndIf
-    //
-    //            If &TotalRegistros = &Contador
-    //                &Y = &CantPasos
-    //            EndIf
-    //
-    //            &y += 1
-    //        EndDo
-    //    Else
-    //        &y = 1
-    //        Do While &y <= &CantPasos
-    //            &CliDdeAux = &VecDCta(&Y)
-    //            &CliHtaAux = &VeChcta(&y)
-    //
-    //            Do 'ProcesoXCta'
-    //
-    //            If &pgplat <> 'AS'
-    //                Commit
-    //            EndIf
-    //
-    //            If &PDebug = 'S'
-    //                Do 'GraboLog1'
-    //            EndIf
-    //
-    //            If &CliHtaAux > &CliHta
-    //                &CliHtaAux = &CliHta
-    //            EndIf
-    //
-    //            If &TotalRegistros = &Contador
-    //                &Y = &CantPasos
-    //            EndIf
-    //
-    //            &y += 1
-    //        EndDo
-    //    EndIf  //&PorCuenta = 'N'
-    //EndIf  //&TotalRegistros <> 0
-    //BBB
-
-    //CCC
-    &SucdAux   = &Sucd
-    &SuchAux   = &Such
-    &CliDdeAux = &CliDde
-    &CliHtaAux = &CliHta
-    If &PorCuenta = 'S'
-        Do 'ProcesoXCta'
-    Else
-        Do 'ProcesoXSucCta'
-    EndIf
-    //DDD
-
-    If &PDebug = 'S'
-        &aDbgMsg = Concat('+ ParametrosF: ',Trim(&C1),' ')
-        &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')
-        &aDbgMsg = Concat(&aDbgMsg,Time(),' ')
-        &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&Contador,15,0)),' + Registros Procesados: ')         Do 'Genero Debug'
-    EndIf
-
-    If &TotalRegistros = 0  //No hace uso de bloques y no se carga
-        &TotalRegistros = &Contador
-    EndIf
-
-    //Quito marca de ejecución
-    &EstCTRL = 'F'
-    &MIGESTRi = &TotalRegistros
-    &MIGESTRg = &Contador
-    &MIGESTOk = &CantReg
-    &MIGESTEr = &CantErr
-    Call(PBNJCTRL,&BNJEmp,&BNJCod,&P1,&C1,&C2,&tipo,'V',&EstCTRL,&MIGESTRi,&MIGESTRg,&MIGESTOk,&MIGESTEr)
+If &PDebug = 'S'
+    &aDbgMsg = Concat('+ Por cuenta: ', &PorCuenta,' ')     Do 'Genero Debug'
 EndIf
 
+&BnjOk = 'R'
+
+&SucdAux   = &Sucd
+&SuchAux   = &Such
+&CliDdeAux = &CliDde
+&CliHtaAux = &CliHta
+If &PorCuenta = 'S'
+    Do 'ProcesoXCta'
+EndIf
+
+
+If &PDebug = 'S'
+    &aDbgMsg = Concat('+ ParametrosF: ',Trim(&C1),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Time(),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&Contador,15,0)),' + Registros Procesados: ')         Do 'Genero Debug'
+EndIf
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////// SUBRUTINAS  //////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,116 +56,99 @@ Sub 'Log Error'
 EndSub
 
 Sub 'Inicio'
-    //---------------->>>>>
-    //-- CRodríguez - 07/12/2016 - Agrego código para levantar param que indica que se contabiliza por bloques
-    &aMIGRELSI   = Int(&BnjCod / 100)
-    &aMIGRELBA   = &BnjCod - (&aMIGRELSI * 100)
-    &aMIGRELCp   = 'ContabPorBloques'
-    For Each Order MIGRELSI MIGRELBA MIGRELCp //-- MIGBAREL
-        Where MIGRELSI = &aMIGRELSI
-        Where MIGRELBA = &aMIGRELBA
-        Where MIGRELCp = &aMIGRELCp
-        Defined By MIGRELNro
 
-        &ContaXBloque = MIGRELHa //-- 'S'
+    &Contab    = 'S'
+    &BnjTipU   = 2
+    &tipo      = 2 // Sucursal y Cuentas
+    &tipx      = 2 // Vuelco
+    &Bnj900Pg  = 'PBPD500'
+    &HuboError = 'N'
+
+    Call(PBNJINI,&BnjEmp,&BnjCod,&BnjTipU,&P1,&Sucd,&Such,&C1,&DatoDesde,&C2,&DatoHasta,&tipx,&tipo,&BloqCommit,&pgplat,&Bnj900Pg,&Contab,&BNJMod,&BnjTrnDsd,&TrOrd,&HuboError,&PorSQL,&PDebug)
+
+    &CliDde = &DatoDesde
+    &CliHta = &DatoHasta
+
+    &cero = 0
+
+    // --- Obtener Sucursal correspondiente a Casa Matriz
+    For Each Order Pgcod //---Fst017
+        Where Pgcod = &BNJEmp
+        Defined By Pgnom
+        &Ppgsuc = Pgsuc
+        &Pgidio = Pgidio
+        &pgfape = Pgfape
+        &pgclte = Pgclte
     EndFor
-    If &ContaXBloque = 'S'
-        Do 'Inicio 2'
-    Else
-    //----------------<<<<<
-        &Contab    = 'S'
-        &BnjTipU   = 2
-        &tipo      = 2 // Sucursal y Cuentas
-        &tipx      = 2 // Vuelco
-        &Bnj900Pg  = 'PBPD500'
-        &HuboError = 'N'
 
-        Call(PBNJINI,&BnjEmp,&BnjCod,&BnjTipU,&P1,&Sucd,&Such,&C1,&DatoDesde,&C2,&DatoHasta,&tipx,&tipo,&BloqCommit,&pgplat,&Bnj900Pg,&Contab,&BNJMod,&BnjTrnDsd,&TrOrd,&HuboError,&PorSQL,&PDebug)
+    // Guía para Agente
+    &guia = 1181
+    For Each Order Pgcod Tpcod Tpcorr // fst098
+        Where Pgcod = &BNJEmp
+        Where Tpcod = &guia
+        Defined By Tpnro
+        &codagente = Tpnro
+    EndFor
+    &bnjcot2        = '' // para no mezclar el tema del Beneficiario del DPF
+    &codcalificador = 0  // No se utiliza en DPF
+    &codpromotor    = 0  // No se utiliza en DPF
 
-        &CliDde = &DatoDesde
-        &CliHta = &DatoHasta
-
-        &cero = 0
-
-        // --- Obtener Sucursal correspondiente a Casa Matriz
-        For Each Order Pgcod //---Fst017
-            Where Pgcod = &BNJEmp
-            Defined By Pgnom
-            &Ppgsuc = Pgsuc
-            &Pgidio = Pgidio
-            &pgfape = Pgfape
-            &pgclte = Pgclte
-        EndFor
-
-        // Guía para Agente
-        &guia = 1181
-        For Each Order Pgcod Tpcod Tpcorr // fst098
-            Where Pgcod = &BNJEmp
-            Where Tpcod = &guia
-            Defined By Tpnro
-            &codagente = Tpnro
-        EndFor
-        &bnjcot2        = '' // para no mezclar el tema del Beneficiario del DPF
-        &codcalificador = 0  // No se utiliza en DPF
-        &codpromotor    = 0  // No se utiliza en DPF
-
-        //Obtengo valores para códigos de relación de Endosos y de fraccionamiento
-        &endoso = 169
-        &fracc  = 69
-        &guia   = 359
-        For Each Order Pgcod Tpcod Tpcorr //FST098
-            Where Pgcod  = &BNJEmp
-            Where Tpcod  = &guia
-            Defined By Tpnro
-            If Tpcorr = 3
-                &endoso = Tpnro
-            EndIf
-            If Tpcorr = 4
-                &fracc = Tpnro
-            EndIf
-        EndFor
-
-        &POpmCod = 6
-        &vecina() = ''
-        For Each Order Pgcod Trmod Trnro Trord Trsbor //Fst036
-            Where Pgcod = &BNJEmp
-            Where Trmod = &BNJMod
-            Where Trnro = &BNJTrnDsd
-            Where Trord = &TrOrd
-            Defined By Trrubr
-            &J      = Trsbor
-            &EsIntA = 'N'
-            For Each Order Pgcod Modulo OpmCod //FST201
-                Where Pgcod = &BNJEmp
-                Where Modulo = Pcnivc
-                Where OpmCod = &POpmCod
-                Defined By OpmTxt
-                &EsIntA = OpmVal
-            EndFor
-            &vecina(&J) = &EsIntA
-        EndFor
-
-        &Secdpf = 'N'
-        &guia   = 60000 // determina si los saldos iniciales fueron grabados por sector económico
-        For Each Order Pgcod Tpcod Tpcorr // fst098
-            Where Pgcod = &BNJEmp
-            Where Tpcod = &guia
-            Defined By Tpnro
-            If Tpnro = 22
-                &Secdpf = 'S'
-            EndIf
-        EndFor
-
-        &aDbgEmp = &BNJEmp
-        &aDbgPrg = &Pgmname
-        &aDbgUsu = UserId('Server')
-        &aDbgTpo = 'D'   // D.Debug / E.Error / W.Warning
-
-        If &PDebug = 'S'
-            &aDbgMsg = Concat('+ ParametrosI: ',&C1,' ')
-            &aDbgMsg = Concat(&aDbgMsg,&C2,' ')
-            &aDbgMsg = Concat(&aDbgMsg,Time(),' ')              Do 'Genero Debug'
+    //Obtengo valores para códigos de relación de Endosos y de fraccionamiento
+    &endoso = 169
+    &fracc  = 69
+    &guia   = 359
+    For Each Order Pgcod Tpcod Tpcorr //FST098
+        Where Pgcod  = &BNJEmp
+        Where Tpcod  = &guia
+        Defined By Tpnro
+        If Tpcorr = 3
+            &endoso = Tpnro
         EndIf
+        If Tpcorr = 4
+            &fracc = Tpnro
+        EndIf
+    EndFor
+
+    &POpmCod = 6
+    &vecina() = ''
+    For Each Order Pgcod Trmod Trnro Trord Trsbor //Fst036
+        Where Pgcod = &BNJEmp
+        Where Trmod = &BNJMod
+        Where Trnro = &BNJTrnDsd
+        Where Trord = &TrOrd
+        Defined By Trrubr
+        &J      = Trsbor
+        &EsIntA = 'N'
+        For Each Order Pgcod Modulo OpmCod //FST201
+            Where Pgcod = &BNJEmp
+            Where Modulo = Pcnivc
+            Where OpmCod = &POpmCod
+            Defined By OpmTxt
+            &EsIntA = OpmVal
+        EndFor
+        &vecina(&J) = &EsIntA
+    EndFor
+
+    &Secdpf = 'N'
+    &guia   = 60000 // determina si los saldos iniciales fueron grabados por sector económico
+    For Each Order Pgcod Tpcod Tpcorr // fst098
+        Where Pgcod = &BNJEmp
+        Where Tpcod = &guia
+        Defined By Tpnro
+        If Tpnro = 22
+            &Secdpf = 'S'
+        EndIf
+    EndFor
+
+    &aDbgEmp = &BNJEmp
+    &aDbgPrg = &Pgmname
+    &aDbgUsu = UserId('Server')
+    &aDbgTpo = 'D'   // D.Debug / E.Error / W.Warning
+
+    If &PDebug = 'S'
+        &aDbgMsg = Concat('+ ParametrosI: ',&C1,' ')
+        &aDbgMsg = Concat(&aDbgMsg,&C2,' ')
+        &aDbgMsg = Concat(&aDbgMsg,Time(),' ')              Do 'Genero Debug'
     EndIf
 EndSub
 
@@ -321,98 +156,19 @@ Sub 'Genero Debug'       // -- Genero debug (en tabla FSADbg)
     // -----------------------
     // Recibe: &aDbgMsg
     Call(PFSADbg, &aDbgEmp, &aDbgPrg, &aDbgUsu, &aDbgMsg, &aDbgTpo)
+    Do 'Mensaje'
 EndSub  // 'Genero Debug'
 
-Sub 'ProcesoXSucCta'
-    // --- Leer de la bandeja, los registros Ok
-    For Each Order BnjEmp BnjCod BnjOK BnjSuc BnjCta   // BNJ002
-        Where BnjEmp = &BNJEmp
-        Where BnjCod = &BNJCod
-        Where BnjOK  = &BnjOK
-        Where BnjSuc >= &SucdAux
-        Where BnjSuc <= &SuchAux
-        Where BnjCta >= &CliDdeAux
-        Where BnjCta <= &CliHtaAux
-        Defined By BnjFulm
-        &LBnMod = NullValue(&LBnMod )
-        &BnjSuc  = BnjSuc
-        &BnjMda  = BnjMda
-        &BnjPap  = BnjPap
-        &BnjCta  = BnjCta
-        &BnjOpe  = BnjOpe  //= 0
-        &BnjSbOp = BnjSbOp
-        &BnjTOpe = BnjTOpe
-
-        &BnjSdo  = BnjSdo
-        &BnjIm2  = BnjIm2    //Intereses (rel 1)
-        &BnjIm3  = BnjIm3    //Resultado
-        &BnjIm4  = BnjIm4
-        &BnjIm5  = BnjIm5
-        &BbjIm6  = BbjIm6
-        &BnjIm7  = BnjIm7
-        &BnjIm8  = BnjIm8
-        &BnjIm9  = BnjIm9
-        &BnjIm10 = BnjIm10
-        &BnjIm11 = BnjIm11
-        &BnjIm12 = BnjIm12
-        &BnjIm13 = BnjIm13
-        &BnjIm14 = BnjIm14
-        &BnjIm15 = BnjIm15
-        &BnjFval = BnjFval
-        &BnjFvto = BnjFvto
-        &BnjFulm = BnjFulm
-        &BnjStat = BnjStat
-        &BnjPzo  = BnjPzo
-
-        // Obtengo Módulo
-        &TrMod   = BnjCbcu
-        // Obtengo tipo de Interés
-        &EsIntA  = &vecina(BnjTOpe)
-        &PmnCod  = 0
-        &cap     = BnjImp
-        &sdok    = BnjSdo
-
-        &BnjTtas   = BnjTtas
-        &BnjTasa   = BnjTasa
-        &BnjTtac   = BnjTtac
-        &BnjTasc   = BnjTasc
-        &BnjTdia   = BnjTdia
-        &BnjTvto   = BnjTvto
-        &BnjTano   = BnjTano
-        &BnjTint   = BnjTint
-        &BnjDrev   = BnjDrev
-        &BnjImp    = BnjImp
-        &BnjNume   = BnjNume
-        &BnjFnum   = BnjFnum
-        &BnjPlus   = BnjPlus
-        &BnjCltcod = BnjCltcod
-        &BnjPeriod = BnjPeriod
-        &BnjFe99   = BnjFe99
-        &BnjCot1   = BnjCoT1
-
-        Do 'Proceso'
-
-        If &Pmncod <> 0
-            &EstadoAux  = 'C'
-        Else
-            &EstadoAux  = 'K'
-            &CantReg += 1
-        EndIf
-        Call(PBNJACT1, &BNJEmp, &BNJCod, &BnjOK, &BnjSuc, &BnjMda, &BnjPap, &BnjCta, &BnjOpe, &BnjSbOp, &BnjTOpe, &EstadoAux, &Filler())
-//        Call(PBPD400B,&BnjEmp,&BnjCod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&EstadoAux) //FM 16/12/2014 (ERROR fetch out of sequence  AL HACER VUELCO, LLAMO A UN PROGRMA EXTERNO QUE MODIFICA EL ESTADO)
-    EndFor
-EndSub
 
 Sub 'ProcesoXCta'
     // --- Leer de la bandeja, los registros Ok
     For Each Order BnjEmp BnjCod BnjOK BnjCta   // BNJ002
-        Where BnjEmp = &BNJEmp
-        Where BnjCod = &BNJCod
-        Where BnjOK  = &BnjOK
-        Where BnjCta >= &CliDdeAux
-        Where BnjCta <= &CliHtaAux
-        Defined By BnjFulm
-
+    Where BnjEmp = &BNJEmp
+    Where BnjCod = &BNJCod
+    Where BnjOK  = &BnjOK
+    Where BnjCta >= &CliDdeAux
+    Where BnjCta <= &CliHtaAux
+    Defined By BnjFulm
         &LBnMod = NullValue(&LBnMod )
         &BnjSuc  = BnjSuc
         &BnjMda  = BnjMda
@@ -477,14 +233,12 @@ Sub 'ProcesoXCta'
             &CantReg += 1
         EndIf
         Call(PBNJACT1, &BNJEmp, &BNJCod, &BnjOK, &BnjSuc, &BnjMda, &BnjPap, &BnjCta, &BnjOpe, &BnjSbOp, &BnjTOpe, &EstadoAux, &Filler())
-//        Call(PBPD400B,&BnjEmp,&BnjCod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&EstadoAux)
     EndFor
 EndSub
 
 Sub 'Proceso'
      &subordinal = &BnjTOpe
      If &BnjSdo <> 0 // solo para no cancelados
-        //Call(PBnjRel,&BNJEmp ,&BNJCod ,&BNJUltTrn ,&BNJUltRel )
         Call(PRg0010 ,&BNJEmp ,&Ppgsuc ,&BnjMod ,&BNJTrnDsd ,&NroRelacc )
 
         // --- Obtener Cuenta Origen
@@ -590,19 +344,19 @@ Sub 'Proceso'
             // Beneficiario del DPF
             // no tenemos asiento para los cancelados
 
-            for each // bnj016
-                where BNJTXEmp = &BNJEmp
-                where BNJTXSuc = &BnjSuc
-                where BNJTXRub = &cero
-                where BNJTXMda = &BnjMda
-                where BNJTXPap = &BnjPap
-                where BNJTXCta = &BnjCta
-                where BNJTXOpe = &BnjOpe
-                where BNJTXSub = &BnjSbOp
-                where BNJTXTOp = &BnjTOpe
-                where BNJTXBnd = &BNJCod
-                defined by BNJTXCTx
-                new // fsx016
+            For Each // bnj016
+                Where BNJTXEmp = &BNJEmp
+                Where BNJTXSuc = &BnjSuc
+                Where BNJTXRub = &cero
+                Where BNJTXMda = &BnjMda
+                Where BNJTXPap = &BnjPap
+                Where BNJTXCta = &BnjCta
+                Where BNJTXOpe = &BnjOpe
+                Where BNJTXSub = &BnjSbOp
+                Where BNJTXTOp = &BnjTOpe
+                Where BNJTXBnd = &BNJCod
+                Defined By BNJTXCTx
+                New // fsx016
                     Pgcod  = &BNJEmp
                     Hcmod  = &BNJMod
                     Hsucor = &Ppgsuc
@@ -623,8 +377,8 @@ Sub 'Proceso'
                     Txtsbo = &BnjSbOp
                     Txttop = &BnjTOpe
                     Txtmod = &TrMod
-                endnew
-            endfor
+                EndNew
+            EndFor
 
             For Each Order Pgcod Aomod Aosuc Aomda Aopap Aocta Aooper Aosbop Aotope   //FSD010
                 Where Pgcod  = &BnjEmp
@@ -703,787 +457,13 @@ Sub 'Proceso'
             Call(PBPR011,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&Pscrub,&pgplat,&endoso,&fracc,&BNJMod,&BNJTrnDsd,&NroRelacc,&TrOrd,&Ppgsuc,&pgfape)
         EndIf
 
-//        If &BnjPeriod <> NullValue(&BnjPeriod)
-            Call(PBPD601,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&pgplat,&Interes)
-//        Else
-//            New
-//                Pgcod  = &BnjEmp
-//                Ppmod  = &TrMod
-//                Ppsuc  = &BnjSuc
-//                Ppmda  = &BnjMda
-//                Pppap  = &BnjPap
-//                Ppcta  = &BnjCta
-//                Ppoper = &BnjOpe
-//                Ppsbop = &BnjSbOp
-//                Pptope = &BnjTOpe
-//                If &EsIntA = 'S'
-//                    Pptipo = 'I'
-//                    Ppfval = &BnjFval
-//                    Ppfvto = &BnjFvto
-//                    Ppfpag = &BnjFval
-//                Else
-//                    Pptipo = 'M'
-//                    Ppfval = &BnjFval
-//                    Ppfvto = &BnjFvto
-//                    Ppfpag = &BnjFvto
-//                EndIf
-//                Pppzo = &BnjPzo
-//                If &EsIntA = 'N'
-//                    Ppcap = &cap
-//                    Ppint = &BnjNume
-//                Else
-//                    Ppcap = NullValue(Ppcap)
-//                    Ppint = &BnjNume
-//                EndIf
-//                D601co = 'S'
-//            EndNew
-//        EndIf
+		Call(PBPD601,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&pgplat,&Interes)
         Call(PBPD602,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&pgplat,&Interes)
     EndIf
     &Contador = &Contador + 1
 EndSub
 
-//Sub 'GraboLog'
-//    &aDbgMsg = Concat('+ Secuencia: ',Str(&y,5,0),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&SucdAux,5,0)),' SucD/H ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&SuchAux,5,0)),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' CtaD/H ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(&C1),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')                Do 'Genero Debug'
-//EndSub
-//
-//Sub 'GraboLog1'
-//    &aDbgMsg = Concat('+ Secuencia: ',Str(&y,5,0),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(&C1),' ')
-//    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')                Do 'Genero Debug'
-//EndSub
 
-//Sub 'Contabiliza Por Bloques'
-//    If &PDebug = 'S'
-//        &aDbgMsg = Concat('C1 = ',&C1) Do 'Genero Debug'
-//        &aDbgMsg = Concat('C2 = ',&C2) Do 'Genero Debug'
-//        &aDbgMsg = Concat('CliDdeAux = ',Trim(str(&CliDdeAux,9,0))) Do 'Genero Debug'
-//        &aDbgMsg = Concat('CliHteAux = ',Trim(str(&CliHtaAux,10,0))) Do 'Genero Debug'
-//        &aDbgMsg = Concat('BnjMod = ',str(&BnjMod)) Do 'Genero Debug'
-//        &aDbgMsg = Concat('BnjTrn = ',str(&BnjTrnDsd)) Do 'Genero Debug'
-//        &aDbgMsg = Concat('&aContabilizar = ',str(&aContabilizar)) Do 'Genero Debug'
-//    EndIf
-//    For Each //-- BNJ002
-//        Where BnjEmp = &BNJEmp
-//        Where BnjCod = &BNJCod
-//        Where BnjOK  = 'R'
-//        Where BnjCta >= &CliDdeAux
-//        Where BnjCta <= &CliHtaAux
-//        Defined by BnjTtas
-//
-//        &BnjCta  = BnjCta
-//        &BnjPap  = BnjPap
-//        &BnjSuc  = BnjSuc
-//        &BnjOpe  = BnjOpe
-//        &BnjSbop = BnjSbOp
-//        &BnjSdo  = BnjSdo
-//        &BnjMda  = BnjMda
-//        &BnjTope = BnjTOpe
-//        &Itfvto  = BnjFvto
-//        &Itfval  = BnjFval
-//        &BnjPzo  = BnjPzo
-//        &BnjFulm = BnjFulm
-//        &BnjCoT4 = BnjCoT4
-//
-//        &BnjIm2  = BnjIm2
-//        &BnjIm3  = BnjIm3
-//        &BnjIm4  = BnjIm4
-//        &BnjIm5  = BnjIm5
-//        &BbjIm6  = BbjIm6
-//        &BnjIm7  = BnjIm7
-//        &BnjIm8  = BnjIm8
-//        &BnjIm9  = BnjIm9
-//        &BnjIm10 = BnjIm10
-//        &BnjIm11 = BnjIm11
-//        &BnjIm12 = BnjIm12
-//        &BnjIm13 = BnjIm13
-//        &BnjIm14 = BnjIm14
-//        &BnjIm15 = BnjIm15
-//
-//        &BnjFe99 = BnjFe99
-//        &PGM2 = 'RRg0047'
-//        Call(&PGM2,&BNJEmp,&BnjCta,&Rubro,&RubroAux1)
-//        If &RubroAux1 = 0 or &RubroAux1 = NullValue(&RubroAux1)
-//            &RubroAux1 = &Rubro
-//        EndIf
-//
-//        //------------------>>>>>
-//        //-- CRodríguez - 08/12/2016 - Se agrega llamado rr008 y uso le rubro devuelto por este
-//        &aMncodRRR008 = 0
-//        &aRrrubr      = 0
-//        &PGM2 = 'RRr008'
-//        Call(&PGM2 ,&RubroAux1,&BnjPzo,&aRrrubr,&aMncodRRR008)
-//        If &aMncodRRR008 = 0 And &aRrrubr <> 0
-//            &RubroAux1 = &aRrrubr
-//        //------------------<<<<<
-//
-//            If &BnjSdo <> 0
-//                If &Contador = 1
-//                    Call(PRg0010,&BNJEmp,&Pgsuc,&BnjMod,&BnjTrnDsd,&Nrel)
-//                    If &PDebug = 'S'
-//                        &aDbgMsg = '---- Desde - Hasta ----'
-//                        &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' ')
-//                        &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')
-//                        &aDbgMsg = Concat('Nrel = ',str(&Nrel)) Do 'Genero Debug'
-//                    EndIf
-//                    New //-- Fsd015: Fsd015 - Movimientos
-//                        Pgcod  = &BNJEmp
-//                        Itsuc  = &Pgsuc
-//                        Itmod  = &BnjMod
-//                        Ittran = &BnjTrnDsd
-//                        Itnrel = &Nrel
-//                        Itfcon = &Pgfape
-//                        Itfvc  = &Pgfape
-//                        Ituing = &Ituing
-//                        Itwing = &Itwing
-//                        Ithora = &Time
-//                        Itcont = 'B'
-//                    EndNew
-//                EndIf //-- Contador = 1
-//
-//                If &BnjSdo < 0
-//                    &Itdbha = 1
-//                Else
-//                    &Itdbha = 2
-//                EndIf
-//
-//                If &BnjSdo < 0
-//                    &BnjSdo = &BnjSdo * (-1)
-//                EndIf
-//
-//                New // Fsd016: Fsd016 - Movimientos
-//                    Pgcod  = &BNJEmp
-//                    Itsuc  = &Pgsuc
-//                    Itmod  = &BnjMod
-//                    Ittran = &BnjTrnDsd
-//                    Itnrel = &Nrel
-//                    Itord  = &Itord
-//                    Itsbor = &Itsbor
-//                    Modulo = &Modulo
-//                    Ittope = &BnjTope
-//                    Itsucd = &BnjSuc
-//                    Rubro  = &RubroAux1
-//                    Moneda = &BnjMda
-//                    Papel  = &BnjPap
-//                    CTNRO  = &BnjCta
-//                    Itoper = &BnjOpe
-//                    Itsubo = &BnjSbop
-//                    Itfval = &Itfval
-//                    Itfvto = &Itfvto
-//                    Itimp1 = &BnjSdo
-//                    Itdbha = &Itdbha
-//                    Itanu  = 'N'
-//               EndNew
-//
-//               New // Fsd016: Fsd016 - Movimientos
-//                    Pgcod  = &BNJEmp
-//                    Itsuc  = &Pgsuc
-//                    Itmod  = &BnjMod
-//                    Ittran = &BnjTrnDsd
-//                    Itnrel = &Nrel
-//                    Itord  = &Itord + 1
-//                    Itsbor = &Itsbor
-//                    Modulo = &Modulo
-//                    Ittope = &BnjTope
-//                    Itsucd = &BnjSuc
-//                    Rubro  = &RubroAux1
-//                    Moneda = &BnjMda
-//                    Papel  = &BnjPap
-//                    CTNRO  = 999999999
-//                    Itoper = &BnjOpe
-//                    Itsubo = 99999
-//                    Itfval = &Itfval
-//                    Itfvto = &Itfvto
-//                    Itimp1 = &BnjSdo
-//                    If &Itdbha = 1
-//                        Itdbha = 2
-//                    Else
-//                        Itdbha = 1
-//                    EndIf
-//                    Itanu  = 'N'
-//               EndNew
-//
-//               Do 'Otros Ordinales'
-//
-//               //------------------------------------------->>>>>
-//               //-- CRodríguez - 12/01/2017
-//               //-- IMPORTANTE: El llamado al programa que genera los eventos, no se pasará a sentencias SQL, ya que el banco no cargará la BNJ012
-//               //-- Call(PBPD012,&BNJEmp,&BNJCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&pgplat)
-//               //-------------------------------------------<<<<<
-//
-//               If &Itsbor > 998
-//                  &Itord  = &Itord + 2
-//                  &Itsbor = 1
-//                  &Contador = &Contador + 1
-//               Else
-//                  &Itsbor = &Itsbor + 1
-//                  &Contador = &Contador + 1
-//               EndIf
-//            Else // BnjSdo <> 0
-//                New  //--- FSD011
-//                    Pgcod  = &BNJEmp
-//                    Scsuc  = &BnjSuc
-//                    Scrub  = &RubroAux1
-//                    Scmda  = &BnjMda
-//                    Scpap  = &BnjPap
-//                    Sccta  = &BnjCta
-//                    Scoper = &BnjOpe
-//                    Scsbop = &BnjSbop
-//                    Sctope = &BnjTope
-//                    Scmod  = &Modulo
-//                    Scfcon = &Pgfape
-//                    Scfval = &Itfval
-//                    Scfvto = &Itfvto
-//                    Scfulm = &BnjFulm
-//                    Scpzo  = &BnjPzo
-//                    Scsdo  = &BnjSdo
-//                    //                Scsdoh =
-//                    //                Scsegm =
-//                    //                Scfunc =
-//                    //                Scstat =
-//                    //                Sccc   =
-//                    //                Sctit  =
-//                    //                Sccap  =
-//                    //                Scp1zo =
-//                    //                Scgru  =
-//                EndNew
-//            EndIf // BnjSdo <> 0
-//
-//            //-- Cuando Contador = Acontabilizar, se llama al contabilizador
-//            If &Contador = &aContabilizar
-//
-//                &aDbgMsg = '---- &Contador = &aContabilizar ----'
-//                &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliDdeAux,9,0)),' ')
-//                &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&CliHtaAux,9,0)),' ')
-//                &aDbgMsg = Concat('&Contador = ',str(&Contador)) Do 'Genero Debug'
-//                &aDbgMsg = Concat('&aContabilizar = ',str(&aContabilizar)) Do 'Genero Debug'
-//                &PGM2    = 'PP006'
-//                Call(&PGM2,&BNJEmp,&Pgsuc,&BnjMod,&BnjTrnDsd,&Nrel,&Mncod)
-//                &Itord    = 1
-//                &Itsbor   = 1
-//                &Contador = 1
-//                If &Mncod <> 0
-//                    Do 'Log Error2'
-//                EndIf
-//            EndIf
-//            Commit
-//        //------------------>>>>>
-//        //-- CRodríguez - 08/12/2016 - Se agrega llamado rr008 y uso le rubro devuelto por este
-//        Else
-//            &Mncod = &aMncodRRR008
-//            Do 'Log Error2'
-//        EndIf
-//        //------------------<<<<<
-//    EndFor
-//
-//    //-- Esto es por la cantidad de registros a contabilizar
-//    //-- El último bloque, puede ser menor a lo parametrizado
-//    //-- Y entonces esos registros no se contabilizaban
-//    If &Contador > 0
-//        &PGM2    = 'PP006'
-//        Call(&PGM2,&BNJEmp,&Pgsuc,&BnjMod,&BnjTrnDsd,&Nrel,&Mncod)
-//        If &Mncod <> 0
-//            Do 'Log Error2'
-//        EndIf
-//    EndIf
-//
-//    //-- Al finalizar se actualizará los
-//    //-- estado de la bandeja
-//    Do 'ActualizoEstadoSQL'
-//
-//    //---------------->>>>>
-//    //-- CRodríguez - 16/01/2017 - Se agregan llamados a programas que generan las altas de las tablas FSR111 y FSR011, masivamente utilizando SQL
-////    Call(PBPR111SQL, &BNJEmp, &BNJCod, &CliDdeAux, &CliHtaAux, &TrOrd)  //***** problemas con el trord !!!!! Antes era fijo, ahora no pq son miles de trords al ser un mega asiento
-////    If &BNJCod >= 501 And &BNJCod <= 504
-////        Call(PBPR011SQL, &BNJEmp, &BNJCod, &CliDdeAux, &CliHtaAux, &TrOrd)  //***** problemas con el trord !!!!! Antes era fijo, ahora no pq son miles de trords al ser un mega asiento
-////    EndIf
-////    Call(PBPD601SQL, &BNJEmp, &BNJCod, &CliDdeAux, &CliHtaAux)
-////    Call(PBPD602SQL, &BNJEmp, &BNJCod, &CliDdeAux, &CliHtaAux)
-////    Call(PBPDIncrSQL, &BNJEmp, &BNJCod, &CliDdeAux, &CliHtaAux)
-////    Call(PActFSD010SQL, &BNJEmp, &BNJCod, &CliDdeAux, &CliHtaAux)
-//    //----------------<<<<<
-//EndSub
-
-Sub 'Inicio 2'
-    For Each //--- FST017
-        Where Pgcod = &BNJEmp
-        Defined By Pgfape
-
-        &Pgfape = Pgfape
-        &Pgsuc  = Pgsuc
-    EndFor
-    &Contador = 1
-    &aDbgPrg  = 'PBPD500'
-    &aDbgUsu  = UserId('Server')
-    &Itord    = 1
-    &Itsbor   = 1
-    &aContabilizar = 0
-    &Migrelcp = 'Bloques Commit'
-    &Bandeja  = &BNJCod - 500
-    &Ituing   = UserId('Server')
-    &Itwing   = WrkSt()
-    &Itwing   = Trim(&Itwing)
-    &BnjTipU  = 2
-    &Contab   = 'S'
-    &Bnj900Pg = 'PBPD500'
-    &CantErr  = 0
-    &tipx     = 2
-    &tipo     = 1
-    &BNJMod   = 0
-    &BnjTrnDsd = 0
-    &Mncod    = 0
-    Call(PBNJINI,&BnjEmp,&BnjCod,&BnjTipU,&P1,&Sucd,&Such,&C1,&DatoDesde,&C2,&DatoHasta,&tipx,&tipo,&BloqCommit,&pgplat,&Bnj900Pg,&Contab,&BNJMod,&BnjTrnDsd,&TrOrd,&HuboError,&PorSQL,&PDebug)
-    &CliDdeAux = Val(&C1)
-    &CliHtaAux = Val(&C2)
-
-    For Each //-- MIGBAREL
-        Where MIGRELSI = 5
-        Where MIGRELBA = &Bandeja
-        Where MIGRELCp = &Migrelcp
-        Where MIGRELCr = 1
-        Defined by MIGRELTxt
-
-        &aContabilizar = MIGRELNro //--- Este es el valor de cada cuantos registros se hace commit
-        &RubroAux      = MIGRELTxt //--- Este es el rubro madre
-        &Rubro         = Val(Trim(&RubroAux))
-    EndFor
-
-    For Each //-- FSD014
-        Where Rubro = &Rubro
-        Defined by Pcsbrg
-
-        &Modulo = Pcnivc
-    EndFor
-
-    For Each //-- FST200 - Opción Debug
-        Where Pgcod  = &BNJEmp
-        Where OpgCod = 2850
-        Defined By OpgTxt
-
-        &PDebug = OpgVal
-    EndFor
-
-    //-------------------------->>>>>
-    //-- Agrego la carga de los vectores al inicio2 (subrutina que solo se usa cuando se contab por bloques) ya que sin cargar esto no funciona bien el proceso por bloques.
-    //--  En realidad solo se usaría el vector de rubros, pero por las dudas ya dejo cargados todos.
-    &vecmod() = 0
-    &vecrub() = 0
-    For Each // fst036
-        Where Pgcod = &BNJEmp
-        Where Trmod = &BNJMod
-        Where Trnro = &BNJTrnDsd
-        Where Trord = &TrOrd
-        Defined By Trrubr
-
-        &J          = Trsbor
-        &vecmod(&J) = Pcnivc
-        &vecrub(&J) = Trrubr
-    EndFor
-    //--------------------------<<<<<
-EndSub
-
-//Sub 'Otros Ordinales'
-//    If &BnjIm2 <> 0
-//        &RubroAux2 = NullValue(&RubroAux2)
-//        //-- Obtengo Nuevo rubro
-//        For Each //--- FSR014
-//            Where Rubro = &RubroAux1
-//            Where Rrcod = 1
-//            Defined by Rrrubr
-//
-//            &RubroAux2 = Rrrubr
-//        EndFor
-//        If &RubroAux2 <> 0
-//            &ItordAux = 19 + &Itord
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = &BnjTope
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = &BnjCta
-//                Itoper = &BnjOpe
-//                Itsubo = &BnjSbop
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm2
-//                Itdbha = 2
-//                Itanu  = 'N'
-//            EndNew
-//
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux + 1
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = 0
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = 999999999
-//                Itoper = &BnjOpe
-//                Itsubo = &SubOpeFalsa
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm2
-//                Itdbha = 1
-//                Itanu  = 'N'
-//            EndNew
-//        EndIf
-//    EndIf
-//
-//    If &BnjIm3 <> 0
-//        &RubroAux2 = NullValue(&RubroAux2)
-//        //-- Obtengo Nuevo rubro
-//        For Each //--- FSR014
-//            Where Rubro = &RubroAux1
-//            Where Rrcod = 2
-//            Defined by Rrrubr
-//
-//            &RubroAux2 = Rrrubr
-//        EndFor
-//        If &RubroAux2 <> 0
-//            &ItordAux = 29 + &Itord
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = &BnjTope
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = &BnjCta
-//                Itoper = &BnjOpe
-//                Itsubo = &BnjSbop
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm3
-//                Itdbha = 1
-//                Itanu  = 'N'
-//            EndNew
-//
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux + 1
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = 0
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = 999999999
-//                Itoper = &BnjOpe
-//                Itsubo = &SubOpeFalsa
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm3
-//                Itdbha = 2
-//                Itanu  = 'N'
-//            EndNew
-//        EndIf
-//    EndIf
-//
-//    If &BbjIm6 <> 0
-//        &RubroAux2 = NullValue(&RubroAux2)
-//        //-- Obtengo Nuevo rubro
-//        For Each //--- FSR014
-//            Where Rubro = &RubroAux1
-//            Where Rrcod = 924
-//            Defined by Rrrubr
-//
-//            &RubroAux2 = Rrrubr
-//        EndFor
-//        If &RubroAux2 <> 0
-//            &ItordAux = 39 + &Itord
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = &BnjTope
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = &BnjCta
-//                Itoper = &BnjOpe
-//                Itsubo = &BnjSbop
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BbjIm6
-//                Itdbha = 2
-//                Itanu  = 'N'
-//            EndNew
-//
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux + 1
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = 0
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = 999999999
-//                Itoper = &BnjOpe
-//                Itsubo = &SubOpeFalsa
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BbjIm6
-//                Itdbha = 1
-//                Itanu  = 'N'
-//            EndNew
-//        EndIf
-//    EndIf
-//
-//    If &BnjIm12 <> 0
-//        &RubroAux2 = NullValue(&RubroAux2)
-//        //-- Obtengo Nuevo rubro
-//        For Each //--- FSR014
-//            Where Rubro = &RubroAux1
-//            Where Rrcod = 25
-//            Defined by Rrrubr
-//
-//            &RubroAux2 = Rrrubr
-//        EndFor
-//        If &RubroAux2 <> 0
-//            &ItordAux = 49 + &Itord
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = &BnjTope
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = &BnjCta
-//                Itoper = &BnjOpe
-//                Itsubo = &BnjSbop
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm12
-//                Itdbha = 2
-//                Itanu  = 'N'
-//            EndNew
-//
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux + 1
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = 0
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = 999999999
-//                Itoper = &BnjOpe
-//                Itsubo = &SubOpeFalsa
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm12
-//                Itdbha = 1
-//                Itanu  = 'N'
-//            EndNew
-//        EndIf
-//    EndIf
-//
-//    If &BnjIm13 <> 0
-//        &RubroAux2 = NullValue(&RubroAux2)
-//        //-- Obtengo Nuevo rubro
-//        &aRrcod  = 26
-//        &aItdbha = 1
-//        If &BnjIm13 < 0
-//            &aRrcod  = 156
-//            &aItdbha = 2
-//        EndIf
-//        For Each //--- FSR014
-//            Where Rubro = &RubroAux1
-//            Where Rrcod = &aRrcod
-//            Defined by Rrrubr
-//
-//            &RubroAux2 = Rrrubr
-//        EndFor
-//        If &RubroAux2 <> 0
-//            &ItordAux = 59 + &Itord
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = &BnjTope
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = &BnjCta
-//                Itoper = &BnjOpe
-//                Itsubo = &BnjSbop
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm13
-//                Itdbha = &aItdbha
-//                Itanu  = 'N'
-//            EndNew
-//
-//            New // Fsd016: Fsd016 - Movimientos
-//                Pgcod  = &BNJEmp
-//                Itsuc  = &Pgsuc
-//                Itmod  = &BnjMod
-//                Ittran = &BnjTrnDsd
-//                Itnrel = &Nrel
-//                Itord  = &ItordAux + 1
-//                Itsbor = &Itsbor
-//                Modulo = &Modulo
-//                Ittope = 0
-//                Itsucd = &BnjSuc
-//                Rubro  = &RubroAux2
-//                Moneda = &BnjMda
-//                Papel  = &BnjPap
-//                CTNRO  = 999999999
-//                Itoper = &BnjOpe
-//                Itsubo = &SubOpeFalsa
-//                Itfval = &Itfval
-//                Itfvto = &Itfvto
-//                Itimp1 = &BnjIm13
-//                Itdbha = &aItdbha
-//                Itanu  = 'N'
-//            EndNew
-//        EndIf
-//    EndIf
-//EndSub
-
-//Sub 'Log Error2'
-//    &CantErr += 1
-//    New  // BNJ901
-//        BnjCod    = &BNJCod
-//        BnjTipU   = 2
-//        LBnMod    = &BnjMda
-//        LBnSuc    = &BnjSuc
-//        LBnMda    = &BnjMda
-//        LBnPap    = &BnjPap
-//        LBnCta    = &BnjCta
-//        LBnOpe    = &BnjOpe
-//        LBnSOp    = &BnjSbop
-//        LBnTOp    = &BnjTope
-//        LBnChq    = 0
-//        LBnFPag   = &Today
-//        BnjErrCod = &Mncod //---Acá se graba el error contable
-//        LBnFch    = &Today
-//        LBnHor    = &Time
-//        Bnj901Pg  = 'PBPD500'
-//        LbnRubro  = &RubroAux1
-//    EndNew
-//EndSub
-
-//Sub 'ActualizoEstadoSQL'
-//    &SqlAux2 = NullValue(&SqlAux2)
-//    If &BNJCod = 501
-//        //-- Actualizo a K los registros que existan en FSD011
-//        &TxtAuxN = '%K%'
-//        &TxtAuxN = StrReplace(&TxtAuxN,"%","'")
-//        &TxtAuxS = '%R%'
-//        &TxtAuxS = StrReplace(&TxtAuxS,"%","'")
-//        &SqlAux2 = Concat('Update bantotal.bnj002 set bnjok = ',&TxtAuxN)
-//        //---------------->>>>>
-//        //-- CRodríguez - 08/12/2016 - Le agrego los rangos de las vías
-//        //-- Antes:
-//        //-- &SqlAux2 = Concat(&SqlAux2,' where bnjcod = 501 and exists (select * from bantotal.fsd011 where pgcod = bnjemp and scsuc = bnjsuc and scmda = bnjmda and scpap = bnjpap')
-//        //-- Ahora:
-//        &CtaDesde = Val(Trim(&C1))
-//        &CtaHasta = Val(Trim(&C2))
-//        &SqlAux2  = &SqlAux2 + ' where bnjcod = 501 And bnjcta >= ' + Trim(Str(&CtaDesde)) + ' And bnjcta <= '  + Trim(Str(&CtaHasta))
-//        &SqlAux2  = &SqlAux2 + ' and exists (select * from bantotal.fsd011 where pgcod = bnjemp and scsuc = bnjsuc and scmda = bnjmda and scpap = bnjpap'
-//        //----------------<<<<<
-//        &SqlAux2 = Concat(&SqlAux2,' and sccta = bnjcta and scoper = bnjope and scsbop = bnjsbop and sctope = bnjtope and scmod = 22) and bnjok = ')
-//        &SqlAux2 = Concat(&SqlAux2,&TxtAuxS)
-//        If &PDebug = 'S'
-//           &aDbgMsg = Concat('Ejecutando Sentencia = ',SubStr(&SqlAux2,1,76)) Do 'Genero Debug'
-//           &aDbgMsg = SubStr(&SqlAux2,77,176) Do 'Genero Debug'
-//           &aDbgMsg = SubStr(&SqlAux2,177,276) Do 'Genero Debug'
-//        EndIf
-//        Sql [!&SqlAux2!]
-//        &SqlAux2 = NullValue(&SqlAux2)
-//
-//        //---Actualizo a C los registros que no existan en FSD011
-//        &TxtAuxN = '%C%'
-//        &TxtAuxN = StrReplace(&TxtAuxN,"%","'")
-//        &SqlAux2 = Concat('Update bantotal.bnj002 set bnjok = ',&TxtAuxN)
-//        //---------------->>>>>
-//        //-- CRodríguez - 27/10/2016 - Le agrego los rangos de las vías
-//        //-- Antes:
-//        //-- &SqlAux2 = Concat(&SqlAux2,' where bnjcod = 501 and not exists (select * from bantotal.fsd011 where pgcod = bnjemp and scsuc = bnjsuc and scmda = bnjmda and scpap = bnjpap')
-//        //-- Ahora:
-//        &SqlAux2 = &SqlAux2 + ' where bnjcod = 501 And bnjcta >= ' + Trim(Str(&CtaDesde)) + ' And bnjcta <= '  + Trim(Str(&CtaHasta))
-//        &SqlAux2 = &SqlAux2 + ' and not exists (select * from bantotal.fsd011 where pgcod = bnjemp and scsuc = bnjsuc and scmda = bnjmda and scpap = bnjpap'
-//        //----------------<<<<<
-//        &SqlAux2 = Concat(&SqlAux2,' and sccta = bnjcta and scoper = bnjope and scsbop = bnjsbop and sctope = bnjtope and scmod = 22) and bnjok = ')
-//        &SqlAux2 = Concat(&SqlAux2,&TxtAuxS)
-//        &SqlAux2 = Concat(&SqlAux2,' and bnjsdo <> 0')
-//        If &PDebug = 'S'
-//           &aDbgMsg = Concat('Ejecutando Sentencia = ',SubStr(&SqlAux2,1,76)) Do 'Genero Debug'
-//           &aDbgMsg = SubStr(&SqlAux2,77,176) Do 'Genero Debug'
-//           &aDbgMsg = SubStr(&SqlAux2,177,276) Do 'Genero Debug'
-//        EndIf
-//        Sql [!&SqlAux2!]
-//    EndIf
-//EndSub
-
-SUB 'Mensaje'
+Sub 'Mensaje'
 //print Mensaje
 EndSub
