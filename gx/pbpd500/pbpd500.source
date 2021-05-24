@@ -1,0 +1,469 @@
+Do 'Inicio' //Parametria
+
+//INDICES
+//BnjEmp, BnjCod, BnjOK, BnjSuc, BnjCta (Sucursal/Cuenta)
+//BnjEmp, BnjCod, BnjOK, BnjCta         (Cuenta)
+
+&PorCuenta = 'S'
+
+If &PDebug = 'S'
+    &aDbgMsg = Concat('+ Por cuenta: ', &PorCuenta,' ')     Do 'Genero Debug'
+EndIf
+
+&BnjOk = 'R'
+
+&SucdAux   = &Sucd
+&SuchAux   = &Such
+&CliDdeAux = &CliDde
+&CliHtaAux = &CliHta
+If &PorCuenta = 'S'
+    Do 'ProcesoXCta'
+EndIf
+
+
+If &PDebug = 'S'
+    &aDbgMsg = Concat('+ ParametrosF: ',Trim(&C1),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(&C2),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Time(),' ')
+    &aDbgMsg = Concat(&aDbgMsg,Trim(Str(&Contador,15,0)),' + Registros Procesados: ')         Do 'Genero Debug'
+EndIf
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////// SUBRUTINAS  //////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Sub 'Log Error'
+    &CantErr += 1
+    New
+        Bnj901Pg  = 'PBPD500'
+        //BnjEmp    = &BNJEmp
+        BnjTipU   = 2
+        LBnMod    = &LBnMod
+        LBnSuc    = &BnjSuc
+        LBnMda    = &BnjMda
+        LBnPap    = &BnjPap
+        LBnCta    = &BnjCta
+        LBnOpe    = &BnjOpe
+        LBnSOp    = &BnjSbOp
+        LBnTOp    = &BnjTOpe
+        LBnChq    = &BNJTrnDsd
+        LBnFPag   = &Today
+        BnjErrCod = &Pmncod
+        LBnFch    = &Today
+        LBnHor    = &Time
+        LBnNumP   = &NroRelacc
+        BnjCod    = &BNJCod
+    EndNew
+EndSub
+
+Sub 'Inicio'
+
+    &Contab    = 'S'
+    &BnjTipU   = 2
+    &tipo      = 2 // Sucursal y Cuentas
+    &tipx      = 2 // Vuelco
+    &Bnj900Pg  = 'PBPD500'
+    &HuboError = 'N'
+
+    Call(PBNJINI,&BnjEmp,&BnjCod,&BnjTipU,&P1,&Sucd,&Such,&C1,&DatoDesde,&C2,&DatoHasta,&tipx,&tipo,&BloqCommit,&pgplat,&Bnj900Pg,&Contab,&BNJMod,&BnjTrnDsd,&TrOrd,&HuboError,&PorSQL,&PDebug)
+
+    &CliDde = &DatoDesde
+    &CliHta = &DatoHasta
+
+    &cero = 0
+
+    // --- Obtener Sucursal correspondiente a Casa Matriz
+    For Each Order Pgcod //---Fst017
+        Where Pgcod = &BNJEmp
+        Defined By Pgnom
+        &Ppgsuc = Pgsuc
+        &Pgidio = Pgidio
+        &pgfape = Pgfape
+        &pgclte = Pgclte
+    EndFor
+
+    // Guía para Agente
+    &guia = 1181
+    For Each Order Pgcod Tpcod Tpcorr // fst098
+        Where Pgcod = &BNJEmp
+        Where Tpcod = &guia
+        Defined By Tpnro
+        &codagente = Tpnro
+    EndFor
+    &bnjcot2        = '' // para no mezclar el tema del Beneficiario del DPF
+    &codcalificador = 0  // No se utiliza en DPF
+    &codpromotor    = 0  // No se utiliza en DPF
+
+    //Obtengo valores para códigos de relación de Endosos y de fraccionamiento
+    &endoso = 169
+    &fracc  = 69
+    &guia   = 359
+    For Each Order Pgcod Tpcod Tpcorr //FST098
+        Where Pgcod  = &BNJEmp
+        Where Tpcod  = &guia
+        Defined By Tpnro
+        If Tpcorr = 3
+            &endoso = Tpnro
+        EndIf
+        If Tpcorr = 4
+            &fracc = Tpnro
+        EndIf
+    EndFor
+
+    &POpmCod = 6
+    &vecina() = ''
+    For Each Order Pgcod Trmod Trnro Trord Trsbor //Fst036
+        Where Pgcod = &BNJEmp
+        Where Trmod = &BNJMod
+        Where Trnro = &BNJTrnDsd
+        Where Trord = &TrOrd
+        Defined By Trrubr
+        &J      = Trsbor
+        &EsIntA = 'N'
+        For Each Order Pgcod Modulo OpmCod //FST201
+            Where Pgcod = &BNJEmp
+            Where Modulo = Pcnivc
+            Where OpmCod = &POpmCod
+            Defined By OpmTxt
+            &EsIntA = OpmVal
+        EndFor
+        &vecina(&J) = &EsIntA
+    EndFor
+
+    &Secdpf = 'N'
+    &guia   = 60000 // determina si los saldos iniciales fueron grabados por sector económico
+    For Each Order Pgcod Tpcod Tpcorr // fst098
+        Where Pgcod = &BNJEmp
+        Where Tpcod = &guia
+        Defined By Tpnro
+        If Tpnro = 22
+            &Secdpf = 'S'
+        EndIf
+    EndFor
+
+    &aDbgEmp = &BNJEmp
+    &aDbgPrg = &Pgmname
+    &aDbgUsu = UserId('Server')
+    &aDbgTpo = 'D'   // D.Debug / E.Error / W.Warning
+
+    If &PDebug = 'S'
+        &aDbgMsg = Concat('+ ParametrosI: ',&C1,' ')
+        &aDbgMsg = Concat(&aDbgMsg,&C2,' ')
+        &aDbgMsg = Concat(&aDbgMsg,Time(),' ')              Do 'Genero Debug'
+    EndIf
+EndSub
+
+Sub 'Genero Debug'       // -- Genero debug (en tabla FSADbg)
+    // -----------------------
+    // Recibe: &aDbgMsg
+    Call(PFSADbg, &aDbgEmp, &aDbgPrg, &aDbgUsu, &aDbgMsg, &aDbgTpo)
+    Do 'Mensaje'
+EndSub  // 'Genero Debug'
+
+
+Sub 'ProcesoXCta'
+    // --- Leer de la bandeja, los registros Ok
+    For Each Order BnjEmp BnjCod BnjOK BnjCta   // BNJ002
+    Where BnjEmp = &BNJEmp
+    Where BnjCod = &BNJCod
+    Where BnjOK  = &BnjOK
+    Where BnjCta >= &CliDdeAux
+    Where BnjCta <= &CliHtaAux
+    Defined By BnjFulm
+        &LBnMod = NullValue(&LBnMod )
+        &BnjSuc  = BnjSuc
+        &BnjMda  = BnjMda
+        &BnjPap  = BnjPap
+        &BnjCta  = BnjCta
+        &BnjOpe  = BnjOpe  //= 0
+        &BnjSbOp = BnjSbOp
+        &BnjTOpe = BnjTOpe
+
+        &BnjSdo  = BnjSdo
+        &BnjIm2  = BnjIm2    //Intereses (rel 1)
+        &BnjIm3  = BnjIm3    //Resultado
+        &BnjIm4  = BnjIm4
+        &BnjIm5  = BnjIm5
+        &BbjIm6  = BbjIm6
+        &BnjIm7  = BnjIm7
+        &BnjIm8  = BnjIm8
+        &BnjIm9  = BnjIm9
+        &BnjIm10 = BnjIm10
+        &BnjIm11 = BnjIm11
+        &BnjIm12 = BnjIm12
+        &BnjIm13 = BnjIm13
+        &BnjIm14 = BnjIm14
+        &BnjIm15 = BnjIm15
+        &BnjFval = BnjFval
+        &BnjFvto = BnjFvto
+        &BnjFulm = BnjFulm
+        &BnjStat = BnjStat
+        &BnjPzo  = BnjPzo
+
+        // Obtengo Módulo
+        &TrMod   = BnjCbcu
+        // Obtengo tipo de Interés
+        &EsIntA  = &vecina(BnjTOpe)
+        &PmnCod  = 0
+        &cap     = BnjImp
+        &sdok    = BnjSdo
+
+        &BnjTtas   = BnjTtas
+        &BnjTasa   = BnjTasa
+        &BnjTtac   = BnjTtac
+        &BnjTasc   = BnjTasc
+        &BnjTdia   = BnjTdia
+        &BnjTvto   = BnjTvto
+        &BnjTano   = BnjTano
+        &BnjTint   = BnjTint
+        &BnjDrev   = BnjDrev
+        &BnjImp    = BnjImp
+        &BnjNume   = BnjNume
+        &BnjFnum   = BnjFnum
+        &BnjPlus   = BnjPlus
+        &BnjCltcod = BnjCltcod
+        &BnjPeriod = BnjPeriod
+        &BnjFe99   = BnjFe99
+        &BnjCot1   = BnjCoT1
+
+        Do 'Proceso'
+        If &Pmncod <> 0
+            &EstadoAux  = 'C'
+        Else
+            &EstadoAux  = 'K'
+            &CantReg += 1
+        EndIf
+        Call(PBNJACT1, &BNJEmp, &BNJCod, &BnjOK, &BnjSuc, &BnjMda, &BnjPap, &BnjCta, &BnjOpe, &BnjSbOp, &BnjTOpe, &EstadoAux, &Filler())
+    EndFor
+EndSub
+
+Sub 'Proceso'
+     &subordinal = &BnjTOpe
+     If &BnjSdo <> 0 // solo para no cancelados
+        Call(PRg0010 ,&BNJEmp ,&Ppgsuc ,&BnjMod ,&BNJTrnDsd ,&NroRelacc )
+
+        // --- Obtener Cuenta Origen
+        &CtaOrigen = 999999999
+
+        // --- Generar el registro de Preformato
+        &PfdRef5 = 'XINSTALADOR'
+        New     // FSD603
+            Pgcod   = &BnjEmp
+            Itsuc   = &Ppgsuc
+            Itmod   = &BnjMod
+            Ittran  = &BNJTrnDsd
+            Itnrel  = &NroRelacc
+            PfdId   = 0          // Siempre en 0
+            PfdCt01 = &BnjCta
+            PfdOp01 = &BnjOpe
+            PfdSo01 = &BnjSbOp
+            PfdTo01 = &BnjTOpe
+            PfdMo01 = &BnjMda
+            PfdPa01 = &BnjPap
+            PfdSu01 = &BnjSuc
+            PfdIm01 = &sdok    //Saldo DPF
+            PfdIm02 = &bnjim2  //Intereses
+            PfdIm03 = &BnjIm3  //Resultado
+            PfdIm04 = &BnjIm4
+            PfdIm05 = &BnjIm5
+            PfdIm06 = &BbjIm6
+            PfdIm07 = &BnjIm7
+            PfdIm08 = &BnjIm8
+            PfdIm09 = &BnjIm9
+            PfdIm10 = &BnjIm10
+            PfdIm11 = &BnjIm11
+            PfdIm12 = &BnjIm12
+            PfdIm13 = &BnjIm13
+            PfdIm14 = &BnjIm14
+            PfdIm15 = &BNJCod
+            PfdFva1 = &BnjFval
+            PfdFvt1 = &BnjFvto
+            PfdCt02 = &CtaOrigen
+            PfdOrd1 = &TrOrd
+            PfdSbo1 = &subordinal
+            PfdCont = 'S'
+            PfdComm = 'S'
+            PfdRef1 = &BnjCot1
+            PfdRef5 = &PfdRef5
+        EndNew
+
+        // --- Llamar al Transaccional batch
+        &Fecha = NullValue(&Fecha )
+        &PmnCod = &Ppgsuc
+        Call(PW103,&BNJEmp,&BNJMod,&BNJTrnDsd,&NroRelacc,&Fecha,&PmnCod)
+    EndIf
+
+    If &Pmncod <> 0
+        Do 'Log Error'
+    Else
+        &Pscrub = NullValue(&Pscrub)
+        // --- Actualizar Estado, Fecha Valor=Fecha Apertura
+        If &BnjFval > CtoD('01/01/70')
+            &EsNula = 'N'
+        Else
+            &EsNula = 'S'
+        EndIf
+        If &BnjSdo <> 0 // las canceladas no tienen FSD011
+            // Actualizo el estado en el registro de la FSD011
+            For Each Order Pgcod Scmod Scmda Scpap Sccta Scsuc Scoper Scsbop Sctope
+                Where Pgcod  = &BnjEmp
+                Where Scsuc  = &BnjSuc
+                Where Scmda  = &BnjMda
+                Where Scpap  = &BnjPap
+                Where Sccta  = &BnjCta
+                Where Scoper = &BnjOpe
+                Where Scsbop = &BnjSbOp
+                Where Sctope = &BnjTOpe
+                Where Scmod  = &TrMod
+                Defined By Scfvto
+                If &BnjStat <> NullValue(&BnjStat)
+                    Scstat = &BnjStat
+                EndIf
+                If &EsNula = 'N'
+                    Scfval = &BnjFval
+                    Scfcon = &BnjFval
+                    Scfvto = &BnjFvto
+                    Scpzo  = &BnjPzo
+                EndIf
+                &Pscrub = Scrub
+            EndFor
+            // Las canceladas no tienen asiento contable
+            For Each Order Pgcod Itsuc Itmod Ittran Itnrel Itord Itsbor // fsd016
+                Where Pgcod  = &BnjEmp
+                Where Itsuc  = &Ppgsuc
+                Where Itmod  = &BnjMod
+                Where Ittran = &BNJTrnDsd
+                Where Itnrel = &NroRelacc
+                Where Itord  = &TrOrd
+                Where Itsbor = &BnjTOpe
+                Defined By Ittdia
+                Ittdia = &BnjTdia
+                Ittvto = &BnjTvto
+                Ittano = &BnjTano
+                Ittint = &BnjTint
+            EndFor
+            // Beneficiario del DPF
+            // no tenemos asiento para los cancelados
+
+            For Each // bnj016
+                Where BNJTXEmp = &BNJEmp
+                Where BNJTXSuc = &BnjSuc
+                Where BNJTXRub = &cero
+                Where BNJTXMda = &BnjMda
+                Where BNJTXPap = &BnjPap
+                Where BNJTXCta = &BnjCta
+                Where BNJTXOpe = &BnjOpe
+                Where BNJTXSub = &BnjSbOp
+                Where BNJTXTOp = &BnjTOpe
+                Where BNJTXBnd = &BNJCod
+                Defined By BNJTXCTx
+                New // fsx016
+                    Pgcod  = &BNJEmp
+                    Hcmod  = &BNJMod
+                    Hsucor = &Ppgsuc
+                    Htran  = &BNJTrnDsd
+                    Hnrel  = &NroRelacc
+                    Hfcon  = &pgfape
+                    Hcord  = &TrOrd
+                    Hcsubo = &BnjTOpe
+                    Txcod  = BNJTXCTx
+                    Txoren = BNJTXRen
+                    Txtord = BNJTXTxt
+                    Txtsuc = &BnjSuc
+                    Txtrub = &Pscrub
+                    Txtmda = &BnjMda
+                    Txtpap = &BnjPap
+                    Txtcta = &BnjCta
+                    Txtope = &BnjOpe
+                    Txtsbo = &BnjSbOp
+                    Txttop = &BnjTOpe
+                    Txtmod = &TrMod
+                EndNew
+            EndFor
+
+            For Each Order Pgcod Aomod Aosuc Aomda Aopap Aocta Aooper Aosbop Aotope   //FSD010
+                Where Pgcod  = &BnjEmp
+                Where Aomod  = &TrMod
+                Where Aosuc  = &BnjSuc
+                Where Aomda  = &BnjMda
+                Where Aopap  = &BnjPap
+                Where Aocta  = &BnjCta
+                Where Aooper = &BnjOpe
+                Where Aosbop = &BnjSbOp
+                Where Aotope = &BnjTOpe
+                Defined By Aostat
+                Aofval   = &BnjFval
+                Aofvto   = &BnjFvto
+                Aopzo    = &BnjPzo
+                Aottas   = &BnjTtas
+                Aotasa   = &BnjTasa
+                Aottac   = &BnjTtac
+                Aotasc   = &BnjTasc
+                Aotdia   = &BnjTdia
+                Aotvto   = &BnjTvto
+                Aotano   = &BnjTano
+                Aotint   = &BnjTint
+                Aodrev   = &BnjDrev
+                Aoimp    = &cap
+                Aotcbi1  = 1
+                Aonume   = &BnjNume
+                Aofnum   = &BnjFnum
+                Aostat   = &BnjStat
+                Aoplus   = &BnjPlus
+                Aocltcod = &BnjCltcod
+                Aoperiod = &BnjPeriod
+            EndFor
+        Else  //&BnjSdo <> 0
+            // a las canceladas se le da de alta en el FSD010
+            New // fsd010
+                Pgcod    = &BnjEmp
+                Aomod    = &TrMod
+                Aosuc    = &BnjSuc
+                Aomda    = &BnjMda
+                Aopap    = &BnjPap
+                Aocta    = &BnjCta
+                Aooper   = &BnjOpe
+                Aosbop   = &BnjSbOp
+                Aotope   = &BnjTOpe
+                Aofval   = &BnjFval
+                Aofvto   = &BnjFvto
+                Aopzo    = &BnjPzo
+                Aottas   = &BnjTtas
+                Aotasa   = &BnjTasa
+                Aottac   = &BnjTtac
+                Aotasc   = &BnjTasc
+                Aotdia   = &BnjTdia
+                Aotvto   = &BnjTvto
+                Aotano   = &BnjTano
+                Aotint   = &BnjTint
+                Aodrev   = &BnjDrev
+                Aoimp    = &BnjImp
+                Aotcbi1  = 1
+                Aonume   = &BnjNume
+                Aofnum   = &BnjFnum
+                Aostat   = &BnjStat
+                Aoplus   = &BnjPlus
+                Aocltcod = &BnjCltcod
+                Aoperiod = &BnjPeriod
+                Aofe99   = &BnjFe99
+                Aostat   = 99
+            EndNew
+        EndIf
+
+        Call(PBPD012,&BNJEmp,&BNJCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&pgplat)
+
+        If &BnjSdo <> 0
+            Call(PBPR111,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&Pscrub,&BNJMod,&BNJTrnDsd,&NroRelacc,&TrOrd,&pgplat,&Ppgsuc,&pgfape)
+
+            Call(PBPR011,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&Pscrub,&pgplat,&endoso,&fracc,&BNJMod,&BNJTrnDsd,&NroRelacc,&TrOrd,&Ppgsuc,&pgfape)
+        EndIf
+
+		Call(PBPD601,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&pgplat,&Interes)
+        Call(PBPD602,&BNJEmp,&BnjCod,&TrMod,&BnjSuc,&BnjMda,&BnjPap,&BnjCta,&BnjOpe,&BnjSbOp,&BnjTOpe,&pgplat,&Interes)
+    EndIf
+    &Contador = &Contador + 1
+EndSub
+
+
+Sub 'Mensaje'
+//print Mensaje
+EndSub
